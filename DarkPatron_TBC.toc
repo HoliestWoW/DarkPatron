@@ -1,0 +1,8 @@
+## Interface: 20506
+## Title: Dark Patron
+## Notes: Solo Self-Found Roguelite Progression
+## Author: HoliestWoW
+## Version: TEST 2.0
+## SavedVariables: DarkPatronAccountDB
+## SavedVariablesPerCharacter: DarkPatronDB
+DarkPatron.lua
