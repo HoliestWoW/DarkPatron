@@ -117,14 +117,15 @@ end
 local function DP_InsertPactToChat(mission)
     if not mission then return end
     
-    -- Strip brackets and colons to keep the regex safe
-    local title = mission.title and tostring(mission.title):gsub(":", ""):gsub("%[", ""):gsub("%]", "") or "Pact"
+    -- Strip brackets, colons, pipes, tildes, and percent signs to keep regex parsing safe
+    local title = mission.title and tostring(mission.title):gsub(":", ""):gsub("%[", ""):gsub("%]", ""):gsub("%%", ""):gsub("%|", ""):gsub("%~", "") or "Pact"
     local rarity = mission.rarity or "Standard"
     local goal = mission.goal or 1
+    local desc = mission.desc and tostring(mission.desc):gsub(":", ""):gsub("%[", ""):gsub("%]", ""):gsub("%%", ""):gsub("%|", ""):gsub("%~", "") or ""
 
     -- The plain text tag sent to the server (What non-addon users see)
-    -- Example: [Pact: The Bloody Striker (35) - Rare]
-    local plainTextTag = string.format("[Pact: %s (%d) - %s]", title, goal, rarity)
+    -- Using ~ instead of | because WoW treats | as a restricted UI escape character
+    local plainTextTag = string.format("[DPact: %s ~ %s ~ %d ~ %s]", title, rarity, goal, desc)
     
     local editBox = ChatEdit_GetActiveWindow()
     if editBox then
@@ -139,86 +140,129 @@ local function DP_InsertPactToChat(mission)
 end
 
 local function DarkPatron_ChatFilter(self, event, msg, author, ...)
-    -- Intercept the exact plain text format and convert it to an addon hyperlink
-    local updatedMsg = msg:gsub("%[Pact: (.-) %((%d+)%) %- (.-)%]", function(title, goal, rarity)
-        local color = "ffffffff" -- Standard (White)
+    if not msg then return false, msg, author, ... end
+    
+    -- Intercept the exact plain text format (now using ~) and convert it to an addon hyperlink
+    local updatedMsg = msg:gsub("%[DPact: (.-) %~ (.-) %~ (%d+) %~ (.-)%]", function(title, rarity, goal, desc)
+        local color = "ffffffff" 
         if rarity == "Rare" then color = "ff0070dd"
         elseif rarity == "Elite" then color = "ffa335ee"
         elseif rarity == "Rare Elite" or rarity == "Boss" then color = "ffff8000" end
         
-        -- The display text: [Title (Goal)]
-        -- The hidden data: dpactchat:title:goal:rarity
-        return string.format("\124c%s\124Hdpactchat:%s:%s:%s\124h[%s (%s)]\124h\124r", color, title, goal, rarity, title, goal)
+        -- Prefix with "Pact:" so Questie's aggressive fuzzy-matcher ignores the string
+        -- The hidden data format: dpactchat:title:goal:rarity:desc
+        return string.format("\124c%s\124Hdpactchat:%s:%s:%s:%s\124h[Pact: %s]\124h\124r", color, title, goal, rarity, desc, title)
     end)
     return false, updatedMsg, author, ...
 end
 
-local chatEvents = { "CHAT_MSG_SAY", "CHAT_MSG_PARTY", "CHAT_MSG_GUILD", "CHAT_MSG_CHANNEL", "CHAT_MSG_WHISPER", "CHAT_MSG_INSTANCE_CHAT" }
+local chatEvents = { 
+    "CHAT_MSG_SAY", "CHAT_MSG_YELL", 
+    "CHAT_MSG_PARTY", "CHAT_MSG_PARTY_LEADER", 
+    "CHAT_MSG_GUILD", "CHAT_MSG_OFFICER", 
+    "CHAT_MSG_CHANNEL", 
+    "CHAT_MSG_WHISPER", "CHAT_MSG_WHISPER_INFORM", 
+    "CHAT_MSG_INSTANCE_CHAT", "CHAT_MSG_INSTANCE_CHAT_LEADER", 
+    "CHAT_MSG_RAID", "CHAT_MSG_RAID_LEADER",
+    "CHAT_MSG_BATTLEGROUND", "CHAT_MSG_BATTLEGROUND_LEADER"
+}
+
 for _, evt in ipairs(chatEvents) do
     ChatFrame_AddMessageEventFilter(evt, DarkPatron_ChatFilter)
 end
 
-hooksecurefunc("SetItemRef", function(link, text, button, chatFrame)
+-- 1. Pre-hook SetItemRef to prevent the Blizzard UI (and addons like Prat/Nova) from crashing
+local orig_SetItemRef = SetItemRef
+function SetItemRef(link, text, button, chatFrame)
     local linkArgs = {strsplit(":", link)}
-    local linkType, title = linkArgs[1], linkArgs[2]
+    local linkType = linkArgs[1]
     
-    if linkType == "dpactchat" and title then
-        local goal, rarity = linkArgs[3], linkArgs[4]
+    if linkType == "dpactchat" or linkType == "dpact" then
+        local title = linkArgs[2]
+        if not title then return end
         
         GameTooltip:SetOwner(UIParent, "ANCHOR_CURSOR")
         GameTooltip:ClearLines()
         GameTooltip:AddLine("Dark Patron Pact", 0.64, 0.21, 0.93)
         GameTooltip:AddLine(title, 1, 1, 1)
         
-        if goal and tonumber(goal) > 1 then
-            GameTooltip:AddLine("Goal Requirement: " .. goal, 1, 1, 1)
+        if linkType == "dpactchat" then
+            local goal, rarity = linkArgs[3], linkArgs[4]
+            local desc = ""
+            for i = 5, #linkArgs do desc = desc .. (i == 5 and "" or ":") .. tostring(linkArgs[i]) end
+            
+            GameTooltip:AddLine("Rarity: " .. (rarity or "Standard"), 0.64, 0.21, 0.93)
+            GameTooltip:AddLine(" ")
+            
+            -- Display the actual objective description instead of just a naked integer
+            if desc and desc ~= "" then
+                GameTooltip:AddLine(desc, 1, 0.82, 0, true)
+                GameTooltip:AddLine(" ")
+            end
+        elseif linkType == "dpact" then
+            local rarity, desc, reward = linkArgs[3], linkArgs[4], linkArgs[5]
+            GameTooltip:AddLine("Rarity: " .. (rarity or "Standard"), 0.64, 0.21, 0.93)
+            GameTooltip:AddLine(" ")
+            if desc and desc ~= "" then
+                GameTooltip:AddLine(desc, 1, 0.82, 0, true)
+                GameTooltip:AddLine(" ")
+            end
+            if reward and reward ~= "" then
+                GameTooltip:AddLine(reward, 0.64, 0.21, 0.93)
+            end
         end
         
-        GameTooltip:AddLine("Rarity: " .. (rarity or "Standard"), 0.64, 0.21, 0.93)
-        GameTooltip:AddLine(" ")
         GameTooltip:AddLine("A binding contract issued by the Dark Patron.", 1, 0.82, 0, true)
         GameTooltip:Show()
+        
+        -- Stop execution here so the default UI doesn't crash trying to parse it
+        return
     end
-end)
+    
+    return orig_SetItemRef(link, text, button, chatFrame)
+end
 
+-- 2. Hook OnHyperlinkEnter for hovering over links in chat
 GameTooltip:HookScript("OnHyperlinkEnter", function(self, link, text, button)
     local linkArgs = {strsplit(":", link)}
-    local linkType, title = linkArgs[1], linkArgs[2]
+    local linkType = linkArgs[1]
     
-    if linkType == "dpactchat" and title then
-        local goal, rarity = linkArgs[3], linkArgs[4]
-        
-        self:SetOwner(UIParent, "ANCHOR_CURSOR")
-        self:ClearLines()
-        self:AddLine("Dark Patron Pact", 0.64, 0.21, 0.93)
-        self:AddLine(title, 1, 1, 1)
-        
-        if goal and tonumber(goal) > 1 then
-            self:AddLine("Goal Requirement: " .. goal, 1, 1, 1)
-        end
-        
-        self:AddLine("Rarity: " .. (rarity or "Standard"), 0.64, 0.21, 0.93)
-        self:AddLine(" ")
-        self:AddLine("A binding contract issued by the Dark Patron.", 1, 0.82, 0, true)
-        self:Show()
+    if linkType == "dpactchat" or linkType == "dpact" then
+        local title = linkArgs[2]
+        if not title then return end
 
-    -- Preserve your existing full-detail broadcast links!
-    elseif linkType == "dpact" and title then
-        local rarity, desc, reward = linkArgs[3], linkArgs[4], linkArgs[5]
-        
         self:SetOwner(UIParent, "ANCHOR_CURSOR")
         self:ClearLines()
         self:AddLine("Dark Patron Pact", 0.64, 0.21, 0.93)
         self:AddLine(title, 1, 1, 1)
-        self:AddLine("Rarity: " .. (rarity or "Standard"), 0.64, 0.21, 0.93)
-        self:AddLine(" ")
-        if desc and desc ~= "" then
-            self:AddLine(desc, 1, 0.82, 0, true)
+        
+        if linkType == "dpactchat" then
+            local goal, rarity = linkArgs[3], linkArgs[4]
+            local desc = ""
+            for i = 5, #linkArgs do desc = desc .. (i == 5 and "" or ":") .. tostring(linkArgs[i]) end
+            
+            self:AddLine("Rarity: " .. (rarity or "Standard"), 0.64, 0.21, 0.93)
             self:AddLine(" ")
+            
+            -- Display the actual objective description instead of just a naked integer
+            if desc and desc ~= "" then
+                self:AddLine(desc, 1, 0.82, 0, true)
+                self:AddLine(" ")
+            end
+        elseif linkType == "dpact" then
+            local rarity, desc, reward = linkArgs[3], linkArgs[4], linkArgs[5]
+            self:AddLine("Rarity: " .. (rarity or "Standard"), 0.64, 0.21, 0.93)
+            self:AddLine(" ")
+            if desc and desc ~= "" then
+                self:AddLine(desc, 1, 0.82, 0, true)
+                self:AddLine(" ")
+            end
+            if reward and reward ~= "" then
+                self:AddLine(reward, 0.64, 0.21, 0.93)
+            end
         end
-        if reward and reward ~= "" then
-            self:AddLine(reward, 0.64, 0.21, 0.93)
-        end
+        
+        self:AddLine("A binding contract issued by the Dark Patron.", 1, 0.82, 0, true)
         self:Show()
     end
 end)
@@ -663,60 +707,6 @@ local function CheckViolations()
 
     if isViolating then Veil:Show() veilText:SetText(violationReason) else Veil:Hide() end
 end
-
-local function DP_InsertPactToChat(mission)
-    if not mission then return end
-    
-    local title = mission.title and tostring(mission.title):gsub(":", ""):gsub("%[", ""):gsub("%]", "") or "Pact"
-    local rarity = mission.rarity or "Standard"
-
-    -- Use angle brackets so the default chat parser doesn't block or treat it as an item link
-    local plainTextTag = string.format("<Dark Patron Pact: %s (%s)>", title, rarity)
-    
-    local editBox = ChatEdit_GetActiveWindow()
-    if editBox then
-        editBox:Insert(plainTextTag)
-    else
-        local defaultBox = ChatEdit_ChooseBoxForSend()
-        if defaultBox then
-            ChatEdit_ActivateChat(defaultBox)
-            defaultBox:Insert(plainTextTag)
-        end
-    end
-end
-
--- Chat message filter intercepting angle-bracketed tags and turning them into hyperlinks
-local function DarkPatron_ChatFilter(self, event, msg, author, ...)
-    local updatedMsg = msg:gsub("<Dark Patron Pact: (.-) %((.-)%)>", function(title, rarity)
-        local color = "ffffffff"
-        if rarity == "Rare" then color = "ff0070dd"
-        elseif rarity == "Elite" then color = "ffa335ee"
-        elseif rarity == "Rare Elite" or rarity == "Boss" then color = "ffff8000" end
-        
-        return string.format("\124c%s\124Hdpact:%s:%s\124h[Dark Patron Pact: %s (%s)]\124h\124r", color, title, rarity, title, rarity)
-    end)
-    return false, updatedMsg, author, ...
-end
-
-local chatEvents = { "CHAT_MSG_SAY", "CHAT_MSG_PARTY", "CHAT_MSG_GUILD", "CHAT_MSG_CHANNEL", "CHAT_MSG_WHISPER", "CHAT_MSG_INSTANCE_CHAT" }
-for _, evt in ipairs(chatEvents) do
-    ChatFrame_AddMessageEventFilter(evt, DarkPatron_ChatFilter)
-end
-
--- Hook custom hyperlink clicks to display tooltips natively when clicked in chat
-hooksecurefunc("SetItemRef", function(link, text, button, chatFrame)
-    local linkType, p1, p2 = strsplit(":", link)
-    if linkType == "dpact" then
-        GameTooltip:SetOwner(UIParent, "ANCHOR_CURSOR")
-        GameTooltip:ClearLines()
-        GameTooltip:AddLine("Dark Patron Pact", 0.64, 0.21, 0.93)
-        GameTooltip:AddLine(p1 or "Pact", 1, 1, 1)
-        GameTooltip:AddLine("Rarity: " .. (p2 or "Standard"), 0.64, 0.21, 0.93)
-        GameTooltip:AddLine(" ")
-        GameTooltip:AddLine("A binding contract issued by the Dark Patron.", 1, 0.82, 0, true)
-        GameTooltip:Show()
-    end
-end)
 
 local UpdateTracker = function()
     if not DarkPatronDB then Tracker:Hide() StreakFrame:Hide() return end
