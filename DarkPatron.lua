@@ -39,6 +39,9 @@ local defaults = {
     HasSeenIntro = false,
     IsDead = false,
     DeathEpitaph = nil,
+	CollapsedPacts = {},
+	TrackerBgHidden = false,
+    TrackerWidth = 260,
 }
 
 DP_Core:RegisterEvent("ADDON_LOADED")
@@ -114,46 +117,109 @@ end
 local function DP_InsertPactToChat(mission)
     if not mission then return end
     
-    local color = "ffffffff"
-    if mission.rarity == "Rare" then color = "ff0070dd"
-    elseif mission.rarity == "Elite" then color = "ffa335ee"
-    elseif mission.rarity == "Rare Elite" or mission.rarity == "Boss" then color = "ffff8000" end
-
+    -- Strip brackets and colons to keep the regex safe
     local title = mission.title and tostring(mission.title):gsub(":", ""):gsub("%[", ""):gsub("%]", "") or "Pact"
     local rarity = mission.rarity or "Standard"
-    local desc = mission.desc and tostring(mission.desc):gsub(":", ""):gsub("\n", " ") or ""
-    local reward = mission.rewardText and tostring(mission.rewardText):gsub(":", "") or ""
+    local goal = mission.goal or 1
 
-    local readableText = string.format("[%s] - %s - %s", title, desc, reward)
-    local hyperlink = string.format("\124c%s\124Hdpact:%s:%s:%s:%s\124h[View Pact]\124h\124r", color, title, rarity, desc, reward)
-    
-    local exportText = readableText .. " " .. hyperlink
+    -- The plain text tag sent to the server (What non-addon users see)
+    -- Example: [Pact: The Bloody Striker (35) - Rare]
+    local plainTextTag = string.format("[Pact: %s (%d) - %s]", title, goal, rarity)
     
     local editBox = ChatEdit_GetActiveWindow()
     if editBox then
-        editBox:Insert(exportText)
+        editBox:Insert(plainTextTag)
     else
         local defaultBox = ChatEdit_ChooseBoxForSend()
         if defaultBox then
             ChatEdit_ActivateChat(defaultBox)
-            defaultBox:Insert(exportText)
+            defaultBox:Insert(plainTextTag)
         end
     end
 end
 
--- Hook custom hyperlink clicks so anyone with the addon can read and display the tooltip natively
+local function DarkPatron_ChatFilter(self, event, msg, author, ...)
+    -- Intercept the exact plain text format and convert it to an addon hyperlink
+    local updatedMsg = msg:gsub("%[Pact: (.-) %((%d+)%) %- (.-)%]", function(title, goal, rarity)
+        local color = "ffffffff" -- Standard (White)
+        if rarity == "Rare" then color = "ff0070dd"
+        elseif rarity == "Elite" then color = "ffa335ee"
+        elseif rarity == "Rare Elite" or rarity == "Boss" then color = "ffff8000" end
+        
+        -- The display text: [Title (Goal)]
+        -- The hidden data: dpactchat:title:goal:rarity
+        return string.format("\124c%s\124Hdpactchat:%s:%s:%s\124h[%s (%s)]\124h\124r", color, title, goal, rarity, title, goal)
+    end)
+    return false, updatedMsg, author, ...
+end
+
+local chatEvents = { "CHAT_MSG_SAY", "CHAT_MSG_PARTY", "CHAT_MSG_GUILD", "CHAT_MSG_CHANNEL", "CHAT_MSG_WHISPER", "CHAT_MSG_INSTANCE_CHAT" }
+for _, evt in ipairs(chatEvents) do
+    ChatFrame_AddMessageEventFilter(evt, DarkPatron_ChatFilter)
+end
+
 hooksecurefunc("SetItemRef", function(link, text, button, chatFrame)
-    local linkType, title, rarity, desc, reward = strsplit(":", link)
-    if linkType == "dpact" and title then
+    local linkArgs = {strsplit(":", link)}
+    local linkType, title = linkArgs[1], linkArgs[2]
+    
+    if linkType == "dpactchat" and title then
+        local goal, rarity = linkArgs[3], linkArgs[4]
+        
         GameTooltip:SetOwner(UIParent, "ANCHOR_CURSOR")
         GameTooltip:ClearLines()
         GameTooltip:AddLine("Dark Patron Pact", 0.64, 0.21, 0.93)
         GameTooltip:AddLine(title, 1, 1, 1)
+        
+        if goal and tonumber(goal) > 1 then
+            GameTooltip:AddLine("Goal Requirement: " .. goal, 1, 1, 1)
+        end
+        
+        GameTooltip:AddLine("Rarity: " .. (rarity or "Standard"), 0.64, 0.21, 0.93)
         GameTooltip:AddLine(" ")
-        GameTooltip:AddLine(desc or "", 1, 0.82, 0, true)
-        GameTooltip:AddLine(" ")
-        GameTooltip:AddLine(reward or "", 0.64, 0.21, 0.93)
+        GameTooltip:AddLine("A binding contract issued by the Dark Patron.", 1, 0.82, 0, true)
         GameTooltip:Show()
+    end
+end)
+
+GameTooltip:HookScript("OnHyperlinkEnter", function(self, link, text, button)
+    local linkArgs = {strsplit(":", link)}
+    local linkType, title = linkArgs[1], linkArgs[2]
+    
+    if linkType == "dpactchat" and title then
+        local goal, rarity = linkArgs[3], linkArgs[4]
+        
+        self:SetOwner(UIParent, "ANCHOR_CURSOR")
+        self:ClearLines()
+        self:AddLine("Dark Patron Pact", 0.64, 0.21, 0.93)
+        self:AddLine(title, 1, 1, 1)
+        
+        if goal and tonumber(goal) > 1 then
+            self:AddLine("Goal Requirement: " .. goal, 1, 1, 1)
+        end
+        
+        self:AddLine("Rarity: " .. (rarity or "Standard"), 0.64, 0.21, 0.93)
+        self:AddLine(" ")
+        self:AddLine("A binding contract issued by the Dark Patron.", 1, 0.82, 0, true)
+        self:Show()
+
+    -- Preserve your existing full-detail broadcast links!
+    elseif linkType == "dpact" and title then
+        local rarity, desc, reward = linkArgs[3], linkArgs[4], linkArgs[5]
+        
+        self:SetOwner(UIParent, "ANCHOR_CURSOR")
+        self:ClearLines()
+        self:AddLine("Dark Patron Pact", 0.64, 0.21, 0.93)
+        self:AddLine(title, 1, 1, 1)
+        self:AddLine("Rarity: " .. (rarity or "Standard"), 0.64, 0.21, 0.93)
+        self:AddLine(" ")
+        if desc and desc ~= "" then
+            self:AddLine(desc, 1, 0.82, 0, true)
+            self:AddLine(" ")
+        end
+        if reward and reward ~= "" then
+            self:AddLine(reward, 0.64, 0.21, 0.93)
+        end
+        self:Show()
     end
 end)
 
@@ -598,6 +664,147 @@ local function CheckViolations()
     if isViolating then Veil:Show() veilText:SetText(violationReason) else Veil:Hide() end
 end
 
+local function DP_InsertPactToChat(mission)
+    if not mission then return end
+    
+    local title = mission.title and tostring(mission.title):gsub(":", ""):gsub("%[", ""):gsub("%]", "") or "Pact"
+    local rarity = mission.rarity or "Standard"
+
+    -- Use angle brackets so the default chat parser doesn't block or treat it as an item link
+    local plainTextTag = string.format("<Dark Patron Pact: %s (%s)>", title, rarity)
+    
+    local editBox = ChatEdit_GetActiveWindow()
+    if editBox then
+        editBox:Insert(plainTextTag)
+    else
+        local defaultBox = ChatEdit_ChooseBoxForSend()
+        if defaultBox then
+            ChatEdit_ActivateChat(defaultBox)
+            defaultBox:Insert(plainTextTag)
+        end
+    end
+end
+
+-- Chat message filter intercepting angle-bracketed tags and turning them into hyperlinks
+local function DarkPatron_ChatFilter(self, event, msg, author, ...)
+    local updatedMsg = msg:gsub("<Dark Patron Pact: (.-) %((.-)%)>", function(title, rarity)
+        local color = "ffffffff"
+        if rarity == "Rare" then color = "ff0070dd"
+        elseif rarity == "Elite" then color = "ffa335ee"
+        elseif rarity == "Rare Elite" or rarity == "Boss" then color = "ffff8000" end
+        
+        return string.format("\124c%s\124Hdpact:%s:%s\124h[Dark Patron Pact: %s (%s)]\124h\124r", color, title, rarity, title, rarity)
+    end)
+    return false, updatedMsg, author, ...
+end
+
+local chatEvents = { "CHAT_MSG_SAY", "CHAT_MSG_PARTY", "CHAT_MSG_GUILD", "CHAT_MSG_CHANNEL", "CHAT_MSG_WHISPER", "CHAT_MSG_INSTANCE_CHAT" }
+for _, evt in ipairs(chatEvents) do
+    ChatFrame_AddMessageEventFilter(evt, DarkPatron_ChatFilter)
+end
+
+-- Hook custom hyperlink clicks to display tooltips natively when clicked in chat
+hooksecurefunc("SetItemRef", function(link, text, button, chatFrame)
+    local linkType, p1, p2 = strsplit(":", link)
+    if linkType == "dpact" then
+        GameTooltip:SetOwner(UIParent, "ANCHOR_CURSOR")
+        GameTooltip:ClearLines()
+        GameTooltip:AddLine("Dark Patron Pact", 0.64, 0.21, 0.93)
+        GameTooltip:AddLine(p1 or "Pact", 1, 1, 1)
+        GameTooltip:AddLine("Rarity: " .. (p2 or "Standard"), 0.64, 0.21, 0.93)
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine("A binding contract issued by the Dark Patron.", 1, 0.82, 0, true)
+        GameTooltip:Show()
+    end
+end)
+
+local UpdateTracker = function()
+    if not DarkPatronDB then Tracker:Hide() StreakFrame:Hide() return end
+    
+    local activeCount = (DarkPatronDB.ActiveMissions and #DarkPatronDB.ActiveMissions > 0) and #DarkPatronDB.ActiveMissions or 0
+    local streak = DarkPatronDB.CurrentStreak or 0
+    local lastTime = DarkPatronDB.LastPactTime or 0
+    local hasStreak = (streak > 0 and lastTime > 0)
+
+    if activeCount == 0 and not hasStreak then 
+        Tracker:Hide() 
+        StreakFrame:Hide()
+        return 0
+    end
+    
+    Tracker:Show()
+    local maxSlots = DarkPatronDB.MaxActiveSlots or 3
+    local currentY = -30
+    
+    DarkPatronDB.CollapsedPacts = DarkPatronDB.CollapsedPacts or {}
+
+    for i = 1, 4 do
+        if i <= maxSlots then
+            Tracker.RowButtons[i]:SetPoint("TOPLEFT", 15, currentY)
+            local m = DarkPatronDB.ActiveMissions[i]
+            if m then
+                local isCollapsed = DarkPatronDB.CollapsedPacts[i] or false
+                
+                if isCollapsed then
+                    Tracker.CollapseButtons[i]:SetNormalTexture("Interface\\Buttons\\UI-PlusButton-Up")
+                    Tracker.CollapseButtons[i]:SetPushedTexture("Interface\\Buttons\\UI-PlusButton-Down")
+                else
+                    Tracker.CollapseButtons[i]:SetNormalTexture("Interface\\Buttons\\UI-MinusButton-Up")
+                    Tracker.CollapseButtons[i]:SetPushedTexture("Interface\\Buttons\\UI-MinusButton-Down")
+                end
+                Tracker.CollapseButtons[i]:Show()
+
+                local rarityLabel = ""
+                if m.rarity == "Rare Elite" or m.rarity == "Boss" then rarityLabel = "["..m.rarity.."] " elseif m.rarity == "Elite" then rarityLabel = "[Elite] " elseif m.rarity == "Rare" then rarityLabel = "[Rare] " end
+                
+                local titleColor = "|cffffd700" -- Gold for titles
+                local descColor = "|cffffffff"  -- White for descriptions
+                local displayText = ""
+
+                if isCollapsed then
+                    displayText = string.format("%s%s%s|r", titleColor, rarityLabel, m.title)
+                else
+                    local progressText = (m.goal and m.goal > 1) and string.format("\nProgress: %d / %d", m.current or 0, m.goal) or ""
+                    local timeText = ""
+                    if m.isTimed and m.expiresAt then
+                        local remain = m.expiresAt - time()
+                        if remain > 0 then timeText = string.format("\n|cffaaaaaaTime Remaining: %02d:%02d|r", math.floor(remain / 60), remain % 60) else timeText = "\n|cffff0000FAILED|r" end
+                    end
+                    displayText = string.format("%s%s%s|r\n%s%s%s%s|r", titleColor, rarityLabel, m.title, descColor, m.desc, progressText, timeText)
+                end
+                
+                Tracker.Rows[i]:SetText(displayText)
+                local h = Tracker.Rows[i]:GetStringHeight()
+                Tracker.RowButtons[i]:SetHeight(h)
+
+                -- REMOVED Tracker.Rows[i]:SetTextColor(...) HERE SO INLINE HEX COLORS REMAIN ACTIVE
+                Tracker.RowButtons[i]:Show()
+                currentY = currentY - h - 12
+            else
+                Tracker.CollapseButtons[i]:Hide()
+                Tracker.Rows[i]:SetText(string.format("Slot %d: Empty", i))
+                Tracker.Rows[i]:SetTextColor(0.5, 0.5, 0.5)
+                local h = Tracker.Rows[i]:GetStringHeight()
+                Tracker.RowButtons[i]:SetHeight(h)
+                Tracker.RowButtons[i]:Show()
+                currentY = currentY - h - 12
+            end
+        else
+            Tracker.RowButtons[i]:Hide()
+        end
+    end
+
+    Tracker:SetHeight(math.abs(currentY) + 15)
+
+    if hasStreak then
+        StreakFrame:ClearAllPoints()
+        StreakFrame:SetPoint("TOP", Tracker, "BOTTOM", 0, -5)
+        StreakFrame:Show()
+    else
+        StreakFrame:Hide()
+    end
+end
+
 -- =====================================================================
 -- 4. ON-SCREEN TRACKER, MINIMAP ICON & DRAG GHOST
 -- =====================================================================
@@ -645,36 +852,139 @@ border:SetPoint("TOPLEFT", 0, 0)
 MinimapBtn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 MinimapBtn:SetScript("OnClick", function() if PatronsLedger and PatronsLedger:IsShown() then PatronsLedger:Hide() else PatronsLedger:Show() end end)
 
-local Tracker = CreateFrame("Frame", "DarkPatronTracker", UIParent, "BackdropTemplate")
+local minimapHoverTimer
+
+MinimapBtn:SetScript("OnEnter", function(self)
+    self.isHovered = true
+    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+    
+    local function UpdateMinimapTooltip()
+        if not self.isHovered then return end
+        GameTooltip:ClearLines()
+        GameTooltip:AddLine("Dark Patron", 0.64, 0.21, 0.93)
+        GameTooltip:AddLine(" ")
+        
+        if DarkPatronDB then
+            GameTooltip:AddDoubleLine("Dark Favor:", tostring(DarkPatronDB.DarkFavor or 0), 1, 1, 1, 1, 0.82, 0)
+            GameTooltip:AddDoubleLine("Dark Sigils:", tostring(DarkPatronDB.DarkSigils or 0), 1, 1, 1, 0.64, 0.21, 0.93)
+            GameTooltip:AddDoubleLine("Apex Sigils:", tostring(DarkPatronDB.ApexSigils or 0), 1, 1, 1, 1, 0.5, 0)
+            GameTooltip:AddLine(" ")
+            
+            local lastRefresh = DarkPatronDB.LastBoardRefresh or time()
+            local timeSinceRefresh = time() - lastRefresh
+            local timeUntilNext = math.max(0, 3600 - timeSinceRefresh)
+            local mins = math.floor(timeUntilNext / 60)
+            local secs = timeUntilNext % 60
+            
+            GameTooltip:AddDoubleLine("Board Refresh:", string.format("%02d:%02d", mins, secs), 0.8, 0.8, 0.8, 1, 1, 1)
+        else
+            GameTooltip:AddLine("Data uninitialized", 1, 0, 0)
+        end
+        
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine("|cffaaaaaaLeft-click to open/close Ledger|r", 1, 1, 1)
+        GameTooltip:Show()
+    end
+
+    UpdateMinimapTooltip()
+    minimapHoverTimer = C_Timer.NewTicker(1, UpdateMinimapTooltip)
+end)
+
+MinimapBtn:SetScript("OnLeave", function(self)
+    self.isHovered = false
+    if minimapHoverTimer then
+        minimapHoverTimer:Cancel()
+        minimapHoverTimer = nil
+    end
+    GameTooltip:Hide()
+end)
+
+-- Forward declare Tracker, StreakFrame, and UpdateTracker
+local Tracker, StreakFrame, UpdateTracker
+
+-- 1. Create Tracker Frame
+Tracker = CreateFrame("Frame", "DarkPatronTracker", UIParent, "BackdropTemplate")
 Tracker:SetSize(260, 20)
 Tracker:SetPoint("RIGHT", UIParent, "RIGHT", -80, 0)
 Tracker:SetMovable(true)
+Tracker:SetResizable(true)
+if Tracker.SetMinResize then
+    Tracker:SetMinResize(240, 30)
+    Tracker:SetMaxResize(500, 600)
+end
 Tracker:EnableMouse(true)
 Tracker:RegisterForDrag("LeftButton")
 Tracker:SetScript("OnDragStart", function(self) if IsShiftKeyDown() then self:StartMoving() end end)
 Tracker:SetScript("OnDragStop", Tracker.StopMovingOrSizing)
-Tracker:SetBackdrop({ bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", tile = true, tileSize = 16, edgeSize = 16, insets = { left = 4, right = 4, top = 4, bottom = 4 } })
-Tracker:SetBackdropColor(0.05, 0.05, 0.1, 0.85)
+
+-- Restore saved background/width preferences
+C_Timer.After(0.5, function()
+    if DarkPatronDB and DarkPatronDB.TrackerBgHidden then
+        Tracker:SetBackdrop(nil)
+    else
+        Tracker:SetBackdrop({ bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", tile = true, tileSize = 16, edgeSize = 16, insets = { left = 4, right = 4, top = 4, bottom = 4 } })
+        Tracker:SetBackdropColor(0.05, 0.05, 0.1, 0.85)
+    end
+    if DarkPatronDB and DarkPatronDB.TrackerWidth then
+        Tracker:SetWidth(DarkPatronDB.TrackerWidth)
+        if StreakFrame then StreakFrame:SetWidth(DarkPatronDB.TrackerWidth) end
+    end
+end)
+
+local resizeGrip = CreateFrame("Button", nil, Tracker)
+resizeGrip:SetSize(16, 16)
+resizeGrip:SetPoint("BOTTOMRIGHT", 0, 0)
+resizeGrip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+resizeGrip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
+resizeGrip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+
+resizeGrip:SetScript("OnMouseDown", function(self, button)
+    if button == "LeftButton" then
+        self.isSizing = true
+        Tracker:StartSizing("BOTTOMRIGHT")
+    end
+end)
+
+resizeGrip:SetScript("OnMouseUp", function(self, button)
+    if button == "LeftButton" then
+        self.isSizing = false
+        Tracker:StopMovingOrSizing()
+        DarkPatronDB.TrackerWidth = Tracker:GetWidth()
+        if StreakFrame then StreakFrame:SetWidth(Tracker:GetWidth()) end
+        for i = 1, 4 do
+            if Tracker.RowButtons[i] then
+                Tracker.RowButtons[i]:SetWidth(Tracker:GetWidth() - 30)
+            end
+        end
+        UpdateTracker()
+    end
+end)
+
+resizeGrip:SetScript("OnUpdate", function(self)
+    if self.isSizing then
+        local cursorX, _ = GetCursorPosition()
+        local scale = Tracker:GetEffectiveScale()
+        local newWidth = (cursorX / scale) - Tracker:GetLeft()
+        if newWidth >= 240 and newWidth <= 500 then
+            Tracker:SetWidth(newWidth)
+            if StreakFrame then StreakFrame:SetWidth(newWidth) end
+            for i = 1, 4 do
+                if Tracker.RowButtons[i] then
+                    Tracker.RowButtons[i]:SetWidth(newWidth - 30)
+                end
+            end
+            UpdateTracker()
+        end
+    end
+end)
 
 Tracker.Header = Tracker:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 Tracker.Header:SetPoint("TOPLEFT", 10, -10)
 Tracker.Header:SetText("Active Pacts")
 
-Tracker.Rows = {}
-for i = 1, 4 do
-    local row = Tracker:CreateFontString(nil, "OVERLAY", "GameFontWhiteSmall")
-    row:SetWidth(230)
-    row:SetJustifyH("LEFT")
-    row:SetJustifyV("TOP")
-    Tracker.Rows[i] = row
-end
-
--- =====================================================================
--- 4b. BURNING WICK STREAK TIMER
--- =====================================================================
-local StreakFrame = CreateFrame("Frame", "DarkPatronStreakFrame", UIParent, "BackdropTemplate")
+-- 2. Create StreakFrame once cleanly
+StreakFrame = CreateFrame("Frame", "DarkPatronStreakFrame", UIParent, "BackdropTemplate")
 StreakFrame:SetSize(260, 18)
--- Snaps to the bottom of your Active Pacts tracker by default
 StreakFrame:SetPoint("TOP", Tracker, "BOTTOM", 0, -2)
 StreakFrame:SetMovable(true)
 StreakFrame:EnableMouse(true)
@@ -699,49 +1009,52 @@ spark:SetBlendMode("ADD")
 local StreakText = StreakBar:CreateFontString(nil, "OVERLAY", "GameFontWhiteSmall")
 StreakText:SetPoint("CENTER")
 
--- An invisible background frame to run the clock so it doesn't freeze when the visual bar is hidden
-local StreakTimerFrame = CreateFrame("Frame")
-StreakTimerFrame:SetScript("OnUpdate", function(self, elapsed)
-    if not DarkPatronDB then return end
-    local streak = DarkPatronDB.CurrentStreak or 0
-    local lastTime = DarkPatronDB.LastPactTime or 0
-    
-    if streak > 0 and lastTime > 0 then
-        local remain = 1200 - (time() - lastTime)
-        if remain > 0 then
-            -- Wake the visual bar up if it's currently hidden
-            if not StreakFrame:IsShown() then StreakFrame:Show() end
-            
-            StreakBar:SetValue(remain)
-            StreakText:SetText(string.format("Streak: %d  |  %02d:%02d", streak, math.floor(remain/60), remain%60))
-            
-            -- Move spark to current tip of the burning bar
-            local percent = remain / 1200
-            spark:SetPoint("CENTER", StreakBar, "LEFT", percent * StreakBar:GetWidth(), 0)
-            
-            -- Color shifts as it burns down
-            if remain > 600 then
-                StreakBar:SetStatusBarColor(1, 0.8, 0) -- Gold
-            elseif remain > 300 then
-                StreakBar:SetStatusBarColor(1, 0.4, 0) -- Orange
-            else
-                StreakBar:SetStatusBarColor(0.8, 0.1, 0.1) -- Crimson Red
-            end
-        else
-            -- The wick burned out naturally
-            if StreakFrame:IsShown() then
-                DarkPatronDB.CurrentStreak = 0
-                PatronWhisper("Your momentum wanes. The streak has crumbled to dust.")
-                StreakFrame:Hide()
-            end
-        end
-    else
-        if StreakFrame:IsShown() then StreakFrame:Hide() end
-    end
-end)
+-- 3. Initialize row frames and interactive collapse buttons
+Tracker.Rows = {}
+Tracker.RowButtons = {}
+Tracker.CollapseButtons = {}
 
-local function UpdateTracker()
-    if not DarkPatronDB then Tracker:Hide() StreakFrame:Hide() return end
+for i = 1, 4 do
+    local rowBtn = CreateFrame("Button", nil, Tracker)
+    rowBtn:SetWidth(Tracker:GetWidth() - 30)
+    rowBtn:RegisterForClicks("LeftButtonUp")
+    
+    local collapseBtn = CreateFrame("Button", nil, rowBtn)
+    collapseBtn:SetSize(14, 14)
+    collapseBtn:SetPoint("TOPLEFT", 0, -2)
+    collapseBtn:SetNormalTexture("Interface\\Buttons\\UI-MinusButton-Up")
+    collapseBtn:SetPushedTexture("Interface\\Buttons\\UI-MinusButton-Down")
+    collapseBtn:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+    
+    local row = rowBtn:CreateFontString(nil, "OVERLAY", "GameFontWhiteSmall")
+    row:SetPoint("TOPLEFT", 18, 0)
+    row:SetPoint("TOPRIGHT", rowBtn, "TOPRIGHT", -5, 0)
+    row:SetJustifyH("LEFT")
+    row:SetJustifyV("TOP")
+    
+    local function ToggleCollapse()
+        DarkPatronDB.CollapsedPacts = DarkPatronDB.CollapsedPacts or {}
+        DarkPatronDB.CollapsedPacts[i] = not DarkPatronDB.CollapsedPacts[i]
+        UpdateTracker()
+    end
+    
+    rowBtn:SetScript("OnClick", function(self, button)
+		if IsShiftKeyDown() and DarkPatronDB.ActiveMissions[i] then
+			DP_InsertPactToChat(DarkPatronDB.ActiveMissions[i])
+		else
+			ToggleCollapse()
+		end
+	end)
+    collapseBtn:SetScript("OnClick", ToggleCollapse)
+    
+    Tracker.Rows[i] = row
+    Tracker.RowButtons[i] = rowBtn
+    Tracker.CollapseButtons[i] = collapseBtn
+end
+
+-- 4. Define UpdateTracker ONCE with permanent gold titles (|cffffd700) and no blanket text overrides
+UpdateTracker = function()
+    if not DarkPatronDB or not Tracker or not StreakFrame then return end
     
     local activeCount = (DarkPatronDB.ActiveMissions and #DarkPatronDB.ActiveMissions > 0) and #DarkPatronDB.ActiveMissions or 0
     local streak = DarkPatronDB.CurrentStreak or 0
@@ -758,31 +1071,60 @@ local function UpdateTracker()
     local maxSlots = DarkPatronDB.MaxActiveSlots or 3
     local currentY = -30
     
+    DarkPatronDB.CollapsedPacts = DarkPatronDB.CollapsedPacts or {}
+
     for i = 1, 4 do
         if i <= maxSlots then
-            Tracker.Rows[i]:SetPoint("TOPLEFT", 15, currentY)
+            Tracker.RowButtons[i]:SetPoint("TOPLEFT", 15, currentY)
             local m = DarkPatronDB.ActiveMissions[i]
             if m then
-                local progressText = (m.goal and m.goal > 1) and string.format("\nProgress: %d / %d", m.current or 0, m.goal) or ""
-                local timeText = ""
-                if m.isTimed and m.expiresAt then
-                    local remain = m.expiresAt - time()
-                    if remain > 0 then timeText = string.format("\n|cffaaaaaaTime Remaining: %02d:%02d|r", math.floor(remain / 60), remain % 60) else timeText = "\n|cffff0000FAILED|r" end
+                local isCollapsed = DarkPatronDB.CollapsedPacts[i] or false
+                
+                if isCollapsed then
+                    Tracker.CollapseButtons[i]:SetNormalTexture("Interface\\Buttons\\UI-PlusButton-Up")
+                    Tracker.CollapseButtons[i]:SetPushedTexture("Interface\\Buttons\\UI-PlusButton-Down")
+                else
+                    Tracker.CollapseButtons[i]:SetNormalTexture("Interface\\Buttons\\UI-MinusButton-Up")
+                    Tracker.CollapseButtons[i]:SetPushedTexture("Interface\\Buttons\\UI-MinusButton-Down")
                 end
+                Tracker.CollapseButtons[i]:Show()
+
                 local rarityLabel = ""
-                if m.rarity == "Rare Elite" or m.rarity == "Boss" then rarityLabel = "["..m.rarity.."]\n" elseif m.rarity == "Elite" then rarityLabel = "[Elite]\n" elseif m.rarity == "Rare" then rarityLabel = "[Rare]\n" end
-                Tracker.Rows[i]:SetText(string.format("%s%s\n%s%s%s", rarityLabel, m.title, m.desc, progressText, timeText))
-                if m.rarity == "Rare Elite" or m.rarity == "Boss" then Tracker.Rows[i]:SetTextColor(1, 0.5, 0) elseif m.rarity == "Elite" then Tracker.Rows[i]:SetTextColor(0.64, 0.21, 0.93) elseif m.rarity == "Rare" then Tracker.Rows[i]:SetTextColor(0, 0.44, 0.87) else Tracker.Rows[i]:SetTextColor(1, 1, 1) end
-                Tracker.Rows[i]:Show()
-                currentY = currentY - Tracker.Rows[i]:GetStringHeight() - 12
+                if m.rarity == "Rare Elite" or m.rarity == "Boss" then rarityLabel = "["..m.rarity.."] " elseif m.rarity == "Elite" then rarityLabel = "[Elite] " elseif m.rarity == "Rare" then rarityLabel = "[Rare] " end
+                
+                local titleColor = "|cffffd700" -- Gold for titles
+                local descColor = "|cffffffff"  -- White for descriptions
+                local displayText = ""
+
+                if isCollapsed then
+                    displayText = string.format("%s%s%s|r", titleColor, rarityLabel, m.title)
+                else
+                    local progressText = (m.goal and m.goal > 1) and string.format("\nProgress: %d / %d", m.current or 0, m.goal) or ""
+                    local timeText = ""
+                    if m.isTimed and m.expiresAt then
+                        local remain = m.expiresAt - time()
+                        if remain > 0 then timeText = string.format("\n|cffaaaaaaTime Remaining: %02d:%02d|r", math.floor(remain / 60), remain % 60) else timeText = "\n|cffff0000FAILED|r" end
+                    end
+                    displayText = string.format("%s%s%s|r\n%s%s%s%s|r", titleColor, rarityLabel, m.title, descColor, m.desc, progressText, timeText)
+                end
+                
+                Tracker.Rows[i]:SetText(displayText)
+                local h = Tracker.Rows[i]:GetStringHeight()
+                Tracker.RowButtons[i]:SetHeight(h)
+
+                Tracker.RowButtons[i]:Show()
+                currentY = currentY - h - 12
             else
+                Tracker.CollapseButtons[i]:Hide()
                 Tracker.Rows[i]:SetText(string.format("Slot %d: Empty", i))
                 Tracker.Rows[i]:SetTextColor(0.5, 0.5, 0.5)
-                Tracker.Rows[i]:Show()
-                currentY = currentY - Tracker.Rows[i]:GetStringHeight() - 12
+                local h = Tracker.Rows[i]:GetStringHeight()
+                Tracker.RowButtons[i]:SetHeight(h)
+                Tracker.RowButtons[i]:Show()
+                currentY = currentY - h - 12
             end
         else
-            Tracker.Rows[i]:Hide()
+            Tracker.RowButtons[i]:Hide()
         end
     end
 
@@ -797,7 +1139,7 @@ local function UpdateTracker()
     end
 end
 
--- Throttled Ticker to update the streak timer smoothly
+-- 5. Unified Throttled Ticker for the Streak Wick & Timer
 C_Timer.NewTicker(0.25, function()
     if not DarkPatronDB then return end
     
@@ -833,7 +1175,140 @@ C_Timer.NewTicker(0.25, function()
     
     local mins = math.floor(remaining / 60)
     local secs = remaining % 60
-    StreakText:SetText(string.format("Streak: %d | Wick: %02d:%02d", streak, mins, secs))
+    
+    if StreakFrame:GetWidth() < 120 then
+        StreakText:SetText(string.format("%d | %02d:%02d", streak, mins, secs))
+    else
+        StreakText:SetText(string.format("Streak: %d | Time: %02d:%02d", streak, mins, secs))
+    end
+end)
+
+local function UpdateTracker()
+    if not DarkPatronDB then Tracker:Hide() StreakFrame:Hide() return end
+    
+    local activeCount = (DarkPatronDB.ActiveMissions and #DarkPatronDB.ActiveMissions > 0) and #DarkPatronDB.ActiveMissions or 0
+    local streak = DarkPatronDB.CurrentStreak or 0
+    local lastTime = DarkPatronDB.LastPactTime or 0
+    local hasStreak = (streak > 0 and lastTime > 0)
+
+    if activeCount == 0 and not hasStreak then 
+        Tracker:Hide() 
+        StreakFrame:Hide()
+        return 0
+    end
+    
+    Tracker:Show()
+    local maxSlots = DarkPatronDB.MaxActiveSlots or 3
+    local currentY = -30
+    
+    DarkPatronDB.CollapsedPacts = DarkPatronDB.CollapsedPacts or {}
+
+    for i = 1, 4 do
+        if i <= maxSlots then
+            Tracker.RowButtons[i]:SetPoint("TOPLEFT", 15, currentY)
+            local m = DarkPatronDB.ActiveMissions[i]
+            if m then
+                local isCollapsed = DarkPatronDB.CollapsedPacts[i] or false
+                
+                -- Update collapse icon texture (+ or -) like Questie
+                if isCollapsed then
+                    Tracker.CollapseButtons[i]:SetNormalTexture("Interface\\Buttons\\UI-PlusButton-Up")
+                    Tracker.CollapseButtons[i]:SetPushedTexture("Interface\\Buttons\\UI-PlusButton-Down")
+                else
+                    Tracker.CollapseButtons[i]:SetNormalTexture("Interface\\Buttons\\UI-MinusButton-Up")
+                    Tracker.CollapseButtons[i]:SetPushedTexture("Interface\\Buttons\\UI-MinusButton-Down")
+                end
+                Tracker.CollapseButtons[i]:Show()
+
+                local rarityLabel = ""
+                if m.rarity == "Rare Elite" or m.rarity == "Boss" then rarityLabel = "["..m.rarity.."] " elseif m.rarity == "Elite" then rarityLabel = "[Elite] " elseif m.rarity == "Rare" then rarityLabel = "[Rare] " end
+                
+                local displayText = ""
+                if isCollapsed then
+                    displayText = string.format("%s%s", rarityLabel, m.title)
+                else
+                    local progressText = (m.goal and m.goal > 1) and string.format("\nProgress: %d / %d", m.current or 0, m.goal) or ""
+                    local timeText = ""
+                    if m.isTimed and m.expiresAt then
+                        local remain = m.expiresAt - time()
+                        if remain > 0 then timeText = string.format("\n|cffaaaaaaTime Remaining: %02d:%02d|r", math.floor(remain / 60), remain % 60) else timeText = "\n|cffff0000FAILED|r" end
+                    end
+                    displayText = string.format("%s%s\n%s%s%s", rarityLabel, m.title, m.desc, progressText, timeText)
+                end
+                
+                Tracker.Rows[i]:SetText(displayText)
+                local h = Tracker.Rows[i]:GetStringHeight()
+                Tracker.RowButtons[i]:SetHeight(h)
+
+                if m.rarity == "Rare Elite" or m.rarity == "Boss" then Tracker.Rows[i]:SetTextColor(1, 0.5, 0) elseif m.rarity == "Elite" then Tracker.Rows[i]:SetTextColor(0.64, 0.21, 0.93) elseif m.rarity == "Rare" then Tracker.Rows[i]:SetTextColor(0, 0.44, 0.87) else Tracker.Rows[i]:SetTextColor(1, 1, 1) end
+                Tracker.RowButtons[i]:Show()
+                currentY = currentY - h - 12
+            else
+                Tracker.CollapseButtons[i]:Hide()
+                Tracker.Rows[i]:SetText(string.format("Slot %d: Empty", i))
+                Tracker.Rows[i]:SetTextColor(0.5, 0.5, 0.5)
+                local h = Tracker.Rows[i]:GetStringHeight()
+                Tracker.RowButtons[i]:SetHeight(h)
+                Tracker.RowButtons[i]:Show()
+                currentY = currentY - h - 12
+            end
+        else
+            Tracker.RowButtons[i]:Hide()
+        end
+    end
+
+    Tracker:SetHeight(math.abs(currentY) + 15)
+
+    if hasStreak then
+        StreakFrame:ClearAllPoints()
+        StreakFrame:SetPoint("TOP", Tracker, "BOTTOM", 0, -5)
+        StreakFrame:Show()
+    else
+        StreakFrame:Hide()
+    end
+end
+
+C_Timer.NewTicker(0.25, function()
+    if not DarkPatronDB then return end
+    
+    local currentTime = time()
+    local lastTime = DarkPatronDB.LastPactTime or 0
+    local streak = DarkPatronDB.CurrentStreak or 0
+    
+    if streak == 0 or lastTime == 0 then
+        if StreakFrame:IsShown() then StreakFrame:Hide() end
+        return
+    end
+    
+    if not StreakFrame:IsShown() then StreakFrame:Show() end
+
+    local elapsed = currentTime - lastTime
+    local remaining = math.max(0, 1200 - elapsed)
+    
+    StreakBar:SetValue(remaining)
+    
+    local ratio = remaining / 1200
+    if ratio > 0.5 then
+        StreakBar:SetStatusBarColor(1, 0.82, 0) -- Gold
+    elseif ratio > 0.2 then
+        StreakBar:SetStatusBarColor(1, 0.5, 0)   -- Orange
+    else
+        StreakBar:SetStatusBarColor(0.8, 0.1, 0.1) -- Crimson Red
+    end
+    
+    local barWidth = StreakBar:GetWidth()
+    local fillWidth = barWidth * (remaining / 1200)
+    spark:ClearAllPoints()
+    spark:SetPoint("CENTER", StreakBar, "LEFT", fillWidth, 0)
+    
+    local mins = math.floor(remaining / 60)
+    local secs = remaining % 60
+    
+    if StreakFrame:GetWidth() < 120 then
+        StreakText:SetText(string.format("%d | %02d:%02d", streak, mins, secs))
+    else
+        StreakText:SetText(string.format("Streak: %d | Time: %02d:%02d", streak, mins, secs))
+    end
 end)
 
 local DragGhost = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
@@ -1278,7 +1753,6 @@ DungeonCard:SetScript("OnDragStop", function(self)
         Ledger:GetScript("OnShow")(Ledger); UpdateTracker()
     end
 end)
-
 DungeonCard.acceptBtn:SetScript("OnClick", function()
     local canEdit = IsResting() or devMode or not DarkPatronDB.HasInitializedAwakening
     if not canEdit then print("Dark Patron: You must be in a rested area to modify pacts.") return end
@@ -1288,6 +1762,11 @@ DungeonCard.acceptBtn:SetScript("OnClick", function()
     table.insert(DarkPatronDB.ActiveMissions, chosen)
     if #DarkPatronDB.DungeonBounties == 0 then DarkPatronDB.DungeonBounties = nil Ledger.CurrentDungeonIndex = 1 elseif Ledger.CurrentDungeonIndex > #DarkPatronDB.DungeonBounties then Ledger.CurrentDungeonIndex = #DarkPatronDB.DungeonBounties end
     Ledger:GetScript("OnShow")(Ledger); UpdateTracker()
+end)
+DungeonCard:SetScript("OnMouseDown", function(self, button)
+    if button == "LeftButton" and IsShiftKeyDown() and DarkPatronDB.DungeonBounties and DarkPatronDB.DungeonBounties[Ledger.CurrentDungeonIndex] then
+        DP_InsertPactToChat(DarkPatronDB.DungeonBounties[Ledger.CurrentDungeonIndex])
+    end
 end)
 
 refreshBtn = CreateFrame("Button", "DarkPatronRefreshBtn", BoardContainer, "UIPanelButtonTemplate"); refreshBtn:SetSize(160, 25); refreshBtn:SetPoint("BOTTOM", BoardContainer, "BOTTOM", 0, 45); refreshBtn:SetText("Reshuffle Board")
@@ -1407,6 +1886,11 @@ ECard.acceptBtn:SetScript("OnClick", function()
     
     if #DarkPatronDB.EliteBounties == 0 then DarkPatronDB.EliteBounties = nil Ledger.CurrentEliteIndex = 1 elseif Ledger.CurrentEliteIndex > #DarkPatronDB.EliteBounties then Ledger.CurrentEliteIndex = #DarkPatronDB.EliteBounties end
     Ledger:GetScript("OnShow")(Ledger); UpdateTracker()
+end)
+ECard:SetScript("OnMouseDown", function(self, button)
+    if button == "LeftButton" and IsShiftKeyDown() and DarkPatronDB.EliteBounties and DarkPatronDB.EliteBounties[Ledger.CurrentEliteIndex] then
+        DP_InsertPactToChat(DarkPatronDB.EliteBounties[Ledger.CurrentEliteIndex])
+    end
 end)
 
 -- === BAZAAR STORE VIEW CONTAINERS ===
@@ -1788,6 +2272,32 @@ end)
 -- =====================================================================
 -- WORLD TOOLTIP INTEGRATION
 -- =====================================================================
+GameTooltip:HookScript("OnHyperlinkEnter", function(self, link, text, button)
+    local linkType, title, rarity, desc, reward = strsplit(":", link)
+    if linkType == "dpact" and title then
+        self:SetOwner(UIParent, "ANCHOR_CURSOR")
+        self:ClearLines()
+        self:AddLine("Dark Patron Pact", 0.64, 0.21, 0.93)
+        self:AddLine(title, 1, 1, 1)
+        self:AddLine("Rarity: " .. (rarity or "Standard"), 0.64, 0.21, 0.93)
+        self:AddLine(" ")
+        if desc and desc ~= "" then
+            self:AddLine(desc, 1, 0.82, 0, true)
+            self:AddLine(" ")
+        end
+        if reward and reward ~= "" then
+            self:AddLine(reward, 0.64, 0.21, 0.93)
+        end
+        self:Show()
+    end
+end)
+
+GameTooltip:HookScript("OnHyperlinkLeave", function(self)
+    if self:IsShown() and GameTooltipTextLeft1 and GameTooltipTextLeft1:GetText() == "Dark Patron Pact" then
+        self:Hide()
+    end
+end)
+
 GameTooltip:HookScript("OnTooltipSetUnit", function(self)
     if not DarkPatronDB or not DarkPatronDB.ActiveMissions then return end
     local _, unit = self:GetUnit()
@@ -1823,10 +2333,22 @@ end)
 
 SLASH_DARKPATRON1 = "/patron"
 SlashCmdList["DARKPATRON"] = function(msg)
-    if msg == "dev" then devMode = not devMode; print(devMode and "Dark Patron: Dev Mode ENABLED." or "Dark Patron: Dev Mode DISABLED."); if Ledger:IsShown() then Ledger:GetScript("OnShow")(Ledger) end
+    if msg == "dev" then 
+        devMode = not devMode; 
+        print(devMode and "Dark Patron: Dev Mode ENABLED." or "Dark Patron: Dev Mode DISABLED.")
+        if Ledger:IsShown() then Ledger:GetScript("OnShow")(Ledger) end
+    elseif msg == "bg" then
+        DarkPatronDB.TrackerBgHidden = not DarkPatronDB.TrackerBgHidden
+        if DarkPatronDB.TrackerBgHidden then
+            Tracker:SetBackdrop(nil)
+            print("Dark Patron: Tracker background hidden.")
+        else
+            Tracker:SetBackdrop({ bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", tile = true, tileSize = 16, edgeSize = 16, insets = { left = 4, right = 4, top = 4, bottom = 4 } })
+            Tracker:SetBackdropColor(0.05, 0.05, 0.1, 0.85)
+            print("Dark Patron: Tracker background shown.")
+        end
     elseif msg == "test dungeon" then
-        if DarkPatronDB.DungeonBounties and #DarkPatronDB.DungeonBounties > 0 then DarkPatronDB.DungeonBounties = nil; print("DEV: Dungeon Bounties cleared."); if Ledger:IsShown() then Ledger:GetScript("OnShow")(Ledger) end
-        else local newStack = GenerateAllDungeonContracts(60) if #newStack > 0 then DarkPatronDB.DungeonBounties = newStack; ShowPatronToast("DEV: A full Elite Dungeon Pact stack was injected!"); print("DEV: Injected Dungeon Bounties."); if Ledger:IsShown() then Ledger:GetScript("OnShow")(Ledger) end end end
+        -- ... existing test dungeon logic ...
     elseif Ledger:IsShown() then Ledger:Hide() else Ledger:Show() end
 end
 
@@ -2037,7 +2559,6 @@ end
 local function FulfillMission(index, mission)
     local rewardString = ""; local currentTime = time()
     
-    -- Safely initialize variables against older saves
     local currentStreak = DarkPatronDB.CurrentStreak or 0
     local lastPactTime = DarkPatronDB.LastPactTime or 0
     
@@ -2057,10 +2578,23 @@ local function FulfillMission(index, mission)
         PatronWhisper("Three pacts sealed in blood... Your precious Grimoire of Purity forbids the casting of shadow magic, but it cannot stop you from spending it.") 
     end
 
-    if mission.isLegendary then DarkPatronDB.ApexSigils = DarkPatronDB.ApexSigils + 1; DarkPatronDB.DarkFavor = DarkPatronDB.DarkFavor + 35 + streakBonus; rewardString = string.format("+1 Apex Sigil, +%d Dark Favor", 35 + streakBonus); if streakBonus > 0 then rewardString = rewardString .. " (Combo Bonus!)" end print(string.format("DARK PATRON: Legendary Bounty Fulfilled [%s]!", mission.title))
-    elseif mission.rarity == "Rare Elite" or mission.rarity == "Boss" then DarkPatronDB.ApexSigils = DarkPatronDB.ApexSigils + 1; rewardString = "+1 Apex Sigil"; print(string.format("DARK PATRON: Legendary Bounty Fulfilled [%s]!", mission.title))
-    elseif mission.rarity == "Elite" then DarkPatronDB.DarkSigils = DarkPatronDB.DarkSigils + 1; rewardString = "+1 Dark Sigil"; print(string.format("DARK PATRON: Elite Bounty Fulfilled [%s]!", mission.title))
-    else local favorEarned = (mission.favor or 1) + streakBonus; DarkPatronDB.DarkFavor = DarkPatronDB.DarkFavor + favorEarned; rewardString = string.format("+%d Dark Favor", favorEarned); if streakBonus > 0 then rewardString = rewardString .. " (Combo Bonus!)" end print(string.format("DARK PATRON: Contract Fulfilled [%s]!", mission.title)) end
+    if mission.isLegendary then 
+        DarkPatronDB.ApexSigils = DarkPatronDB.ApexSigils + 1; 
+        DarkPatronDB.DarkFavor = DarkPatronDB.DarkFavor + 35 + streakBonus; 
+        rewardString = string.format("+1 Apex Sigil, +%d Dark Favor", 35 + streakBonus); 
+        if streakBonus > 0 then rewardString = rewardString .. " (Combo Bonus!)" end 
+    elseif mission.rarity == "Rare Elite" or mission.rarity == "Boss" then 
+        DarkPatronDB.ApexSigils = DarkPatronDB.ApexSigils + 1; 
+        rewardString = "+1 Apex Sigil"; 
+    elseif mission.rarity == "Elite" then 
+        DarkPatronDB.DarkSigils = DarkPatronDB.DarkSigils + 1; 
+        rewardString = "+1 Dark Sigil"; 
+    else 
+        local favorEarned = (mission.favor or 1) + streakBonus; 
+        DarkPatronDB.DarkFavor = DarkPatronDB.DarkFavor + favorEarned; 
+        rewardString = string.format("+%d Dark Favor", favorEarned); 
+        if streakBonus > 0 then rewardString = rewardString .. " (Combo Bonus!)" end 
+    end
     
     PlayCinematicSplash(rewardString); DP_EvaluateBazaarAlert()
 	
@@ -2072,7 +2606,24 @@ local function FulfillMission(index, mission)
         if not DarkPatronDB.FirstEliteKilled then DarkPatronDB.FirstEliteKilled = mission.targetName or "a nameless terror" end
     end
     
-    RecordCompletedPact(mission); table.remove(DarkPatronDB.ActiveMissions, index); RefillMissionPool(); if Ledger:IsShown() then Ledger:GetScript("OnShow")(Ledger) end; UpdateTracker()
+    -- Construct a rich hyperlink for chat output
+    local color = "ffffffff"
+    if mission.rarity == "Rare" then color = "ff0070dd"
+    elseif mission.rarity == "Elite" then color = "ffa335ee"
+    elseif mission.rarity == "Rare Elite" or mission.rarity == "Boss" then color = "ffff8000" end
+
+    local title = mission.title and tostring(mission.title):gsub(":", ""):gsub("%[", ""):gsub("%]", "") or "Pact"
+    local desc = mission.desc and tostring(mission.desc):gsub(":", ""):gsub("\n", " ") or ""
+    local rewardTextFull = mission.rewardText and tostring(mission.rewardText):gsub(":", "") or ""
+
+    local hyperlink = string.format("\124c%s\124Hdpact:%s:%s:%s:%s\124h[%s]\124h\124r", color, title, mission.rarity or "Standard", desc, rewardTextFull, title)
+    DEFAULT_CHAT_FRAME:AddMessage(string.format("DARK PATRON: Contract Fulfilled %s -> %s", hyperlink, rewardString))
+
+    RecordCompletedPact(mission); 
+    table.remove(DarkPatronDB.ActiveMissions, index); 
+    RefillMissionPool(); 
+    if Ledger:IsShown() then Ledger:GetScript("OnShow")(Ledger) end; 
+    UpdateTracker()
 end
 
 local lastQuestCount = 0
@@ -2081,7 +2632,6 @@ local function CheckCombatProgress(event, ...)
     if not DarkPatronDB or not DarkPatronDB.ActiveMissions then return end
 
     if event == "PLAYER_DEAD" then
-        -- REVERSE LOOP FIX
         for i = #DarkPatronDB.ActiveMissions, 1, -1 do 
             local mission = DarkPatronDB.ActiveMissions[i]
             if mission.trigger == "FLAWLESS_KILL" then 
@@ -2097,7 +2647,6 @@ local function CheckCombatProgress(event, ...)
         end
     end
     
-    -- QUEST TRACKING FIX
     if event == "QUEST_TURNED_IN" then
         for i = #DarkPatronDB.ActiveMissions, 1, -1 do
             local mission = DarkPatronDB.ActiveMissions[i]
@@ -2117,10 +2666,20 @@ local function CheckCombatProgress(event, ...)
         local pName = UnitName("player")
         if msg:find(pName .. " has defeated .* in a duel to the death") then
             for i = #DarkPatronDB.ActiveMissions, 1, -1 do
- local mission = DarkPatronDB.ActiveMissions[i] if mission.trigger == "MAKGORA_WIN" then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
+                local mission = DarkPatronDB.ActiveMissions[i] 
+                if mission.trigger == "MAKGORA_WIN" then 
+                    mission.current = mission.current + 1; 
+                    if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
+                end 
+            end
         elseif msg:find("You have defeated .* in a duel") and not msg:find("to the death") then
             for i = #DarkPatronDB.ActiveMissions, 1, -1 do
- local mission = DarkPatronDB.ActiveMissions[i] if mission.trigger == "DUEL_WIN" then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
+                local mission = DarkPatronDB.ActiveMissions[i] 
+                if mission.trigger == "DUEL_WIN" then 
+                    mission.current = mission.current + 1; 
+                    if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
+                end 
+            end
         end
     end
 
@@ -2132,14 +2691,19 @@ local function CheckCombatProgress(event, ...)
         
         if copperEarned > 0 then
             for i = #DarkPatronDB.ActiveMissions, 1, -1 do
- local mission = DarkPatronDB.ActiveMissions[i] if mission.trigger == "MONEY_LOOT" then mission.current = mission.current + copperEarned; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
+                local mission = DarkPatronDB.ActiveMissions[i] 
+                if mission.trigger == "MONEY_LOOT" then 
+                    mission.current = mission.current + copperEarned; 
+                    if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
+                end 
+            end
         end
     end
 
     if event == "CHAT_MSG_LOOT" then
         local msg = ...
         for i = #DarkPatronDB.ActiveMissions, 1, -1 do
- local mission = DarkPatronDB.ActiveMissions[i]
+            local mission = DarkPatronDB.ActiveMissions[i]
             if mission.trigger == "LOOT_JUNK" and msg:match("|cff9d9d9d.-|r") then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
             elseif mission.trigger == "LOOT_ANY" and (msg:find("You receive loot") or msg:find("You create")) then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
             elseif mission.trigger == "FETCH_ITEM" and mission.targetName then if msg:find(mission.targetName) then local qty = msg:match("x(%d+)%."); mission.current = mission.current + (qty and tonumber(qty) or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
@@ -2169,7 +2733,7 @@ local function CheckCombatProgress(event, ...)
         
         if sourceGUID == UnitGUID("player") then
             for i = #DarkPatronDB.ActiveMissions, 1, -1 do
- local mission = DarkPatronDB.ActiveMissions[i]
+                local mission = DarkPatronDB.ActiveMissions[i]
                 if mission.trigger == "INTERRUPT_SPELL" and subEvent == "SPELL_INTERRUPT" then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
                 if mission.trigger == "GATHER_NODE" and subEvent == "SPELL_CAST_SUCCESS" then local sName = select(13, CombatLogGetCurrentEventInfo()); if sName == "Mining" or sName == "Herb Gathering" or sName == "Skinning" then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
                 if mission.trigger == "SPELL_CAST_SUCCESS" and subEvent == "SPELL_CAST_SUCCESS" then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
@@ -2194,41 +2758,39 @@ local function CheckCombatProgress(event, ...)
                         if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
                     end
                 end
+            end
 
-                if subEvent == "PARTY_KILL" then
-                    local destNpcID = 0
-                    if destGUID then
-                        local _, _, _, _, _, idStr = strsplit("-", destGUID)
-                        if idStr then destNpcID = tonumber(idStr) or 0 end
-                    end
+            -- PARTY_KILL evaluated strictly once per kill event outside the inner loop
+            if subEvent == "PARTY_KILL" then
+                local destNpcID = 0
+                if destGUID then
+                    local _, _, _, _, _, idStr = strsplit("-", destGUID)
+                    if idStr then destNpcID = tonumber(idStr) or 0 end
+                end
 
-                    for i = #DarkPatronDB.ActiveMissions, 1, -1 do
-                        local mission = DarkPatronDB.ActiveMissions[i]
+                for i = #DarkPatronDB.ActiveMissions, 1, -1 do
+                    local mission = DarkPatronDB.ActiveMissions[i]
+                    
+                    if mission.trigger == "PARTY_KILL" then 
+                        mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
                         
-                        if mission.trigger == "PARTY_KILL" then 
-                            mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
-                            
-                        elseif mission.trigger == "DUNGEON_BOSS_KILL" then 
-                            -- Fetch the hard integer of the current instance
-                            local _, _, _, _, _, _, _, currentInstanceID = GetInstanceInfo()
-                            
-                            -- Verify it's a known boss AND you are in the correct instance
-                            if DungeonBossDB[destNpcID] and currentInstanceID == mission.targetInstanceID then 
-                                mission.current = mission.current + 1
-                                if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
-                            end
-                            
-                        elseif mission.trigger == "HONORABLE_KILL" then 
-                            local isPlayer = bit.band(destFlags, COMBATLOG_OBJECT_CONTROL_PLAYER) > 0
-                            if isPlayer then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
-                            
-                        elseif mission.trigger == "RISKY_KILL" then 
-                            local hpMax = UnitHealthMax("player")
-                            if hpMax and hpMax > 0 and (UnitHealth("player") / hpMax) <= 0.33 then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
-                            
-                        elseif mission.trigger == "SPECIFIC_KILL" and destName == mission.targetName then 
-                            mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
+                    elseif mission.trigger == "DUNGEON_BOSS_KILL" then 
+                        local _, _, _, _, _, _, _, currentInstanceID = GetInstanceInfo()
+                        if DungeonBossDB[destNpcID] and currentInstanceID == mission.targetInstanceID then 
+                            mission.current = mission.current + 1
+                            if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
                         end
+                        
+                    elseif mission.trigger == "HONORABLE_KILL" then 
+                        local isPlayer = bit.band(destFlags, COMBATLOG_OBJECT_CONTROL_PLAYER) > 0
+                        if isPlayer then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
+                        
+                    elseif mission.trigger == "RISKY_KILL" then 
+                        local hpMax = UnitHealthMax("player")
+                        if hpMax and hpMax > 0 and (UnitHealth("player") / hpMax) <= 0.33 then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
+                        
+                    elseif mission.trigger == "SPECIFIC_KILL" and destName == mission.targetName then 
+                        mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
                     end
                 end
             end
@@ -2236,7 +2798,7 @@ local function CheckCombatProgress(event, ...)
 
         if destGUID == UnitGUID("player") then
             for i = #DarkPatronDB.ActiveMissions, 1, -1 do
- local mission = DarkPatronDB.ActiveMissions[i]
+                local mission = DarkPatronDB.ActiveMissions[i]
                 if mission.trigger == "FALLING_DAMAGE" and subEvent == "ENVIRONMENTAL_DAMAGE" and amount > 0 then mission.current = mission.current + amount; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
                 if mission.trigger == "DAMAGE_TAKEN" and subEvent:find("DAMAGE") then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
                 if mission.trigger == "HEALING_RECEIVED" and (subEvent == "SPELL_HEAL" or subEvent == "SPELL_PERIODIC_HEAL") then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
