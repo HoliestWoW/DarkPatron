@@ -171,99 +171,84 @@ for _, evt in ipairs(chatEvents) do
     ChatFrame_AddMessageEventFilter(evt, DarkPatron_ChatFilter)
 end
 
--- 1. Pre-hook SetItemRef to prevent the Blizzard UI (and addons like Prat/Nova) from crashing
+-- Helper function to match the tooltip rarity text color to your chat hex colors
+local function GetRarityColor(rarity)
+    if rarity == "Rare" then return 0.0, 0.44, 0.87
+    elseif rarity == "Elite" then return 0.64, 0.21, 0.93
+    elseif rarity == "Rare Elite" or rarity == "Boss" then return 1.0, 0.5, 0.0
+    else return 1.0, 1.0, 1.0 end -- Standard White
+end
+
+-- Unified tooltip builder to keep both hover and click tooltips identical
+local function BuildPactTooltip(tooltip, linkType, linkArgs)
+    local title = linkArgs[2]
+    if not title then return end
+    
+    tooltip:ClearLines()
+    tooltip:AddLine("Dark Patron Pact", 0.64, 0.21, 0.93)
+    tooltip:AddLine(title, 1, 1, 1)
+    
+    if linkType == "dpactchat" then
+        local goal, rarity = linkArgs[3], linkArgs[4]
+        local desc = ""
+        for i = 5, #linkArgs do desc = desc .. (i == 5 and "" or ":") .. tostring(linkArgs[i]) end
+        
+        if goal and tonumber(goal) > 1 then tooltip:AddLine("Goal Requirement: " .. goal, 1, 1, 1) end
+        
+        local r, g, b = GetRarityColor(rarity)
+        tooltip:AddLine("Rarity: " .. (rarity or "Standard"), r, g, b)
+        tooltip:AddLine(" ")
+        
+        if desc and desc ~= "" then
+            tooltip:AddLine(desc, 1, 0.82, 0, true)
+            tooltip:AddLine(" ")
+        end
+    elseif linkType == "dpact" then
+        local rarity, desc, reward = linkArgs[3], linkArgs[4], linkArgs[5]
+        local r, g, b = GetRarityColor(rarity)
+        tooltip:AddLine("Rarity: " .. (rarity or "Standard"), r, g, b)
+        tooltip:AddLine(" ")
+        if desc and desc ~= "" then
+            tooltip:AddLine(desc, 1, 0.82, 0, true)
+            tooltip:AddLine(" ")
+        end
+        if reward and reward ~= "" then
+            tooltip:AddLine(reward, 0.64, 0.21, 0.93)
+        end
+    end
+    
+    tooltip:AddLine("A binding contract issued by the Dark Patron.", 1, 0.82, 0, true)
+    tooltip:Show()
+end
+
+-- 1. Pre-hook SetItemRef (Triggers when CLICKING the link in chat)
 local orig_SetItemRef = SetItemRef
 function SetItemRef(link, text, button, chatFrame)
     local linkArgs = {strsplit(":", link)}
     local linkType = linkArgs[1]
     
     if linkType == "dpactchat" or linkType == "dpact" then
-        local title = linkArgs[2]
-        if not title then return end
-        
-        GameTooltip:SetOwner(UIParent, "ANCHOR_CURSOR")
-        GameTooltip:ClearLines()
-        GameTooltip:AddLine("Dark Patron Pact", 0.64, 0.21, 0.93)
-        GameTooltip:AddLine(title, 1, 1, 1)
-        
-        if linkType == "dpactchat" then
-            local goal, rarity = linkArgs[3], linkArgs[4]
-            local desc = ""
-            for i = 5, #linkArgs do desc = desc .. (i == 5 and "" or ":") .. tostring(linkArgs[i]) end
-            
-            GameTooltip:AddLine("Rarity: " .. (rarity or "Standard"), 0.64, 0.21, 0.93)
-            GameTooltip:AddLine(" ")
-            
-            -- Display the actual objective description instead of just a naked integer
-            if desc and desc ~= "" then
-                GameTooltip:AddLine(desc, 1, 0.82, 0, true)
-                GameTooltip:AddLine(" ")
-            end
-        elseif linkType == "dpact" then
-            local rarity, desc, reward = linkArgs[3], linkArgs[4], linkArgs[5]
-            GameTooltip:AddLine("Rarity: " .. (rarity or "Standard"), 0.64, 0.21, 0.93)
-            GameTooltip:AddLine(" ")
-            if desc and desc ~= "" then
-                GameTooltip:AddLine(desc, 1, 0.82, 0, true)
-                GameTooltip:AddLine(" ")
-            end
-            if reward and reward ~= "" then
-                GameTooltip:AddLine(reward, 0.64, 0.21, 0.93)
-            end
+        -- Use the standard UI persistent ItemRefTooltip for clicked links
+        ShowUIPanel(ItemRefTooltip)
+        if not ItemRefTooltip:IsVisible() then
+            ItemRefTooltip:SetOwner(UIParent, "ANCHOR_PRESERVE")
         end
-        
-        GameTooltip:AddLine("A binding contract issued by the Dark Patron.", 1, 0.82, 0, true)
-        GameTooltip:Show()
-        
-        -- Stop execution here so the default UI doesn't crash trying to parse it
+        BuildPactTooltip(ItemRefTooltip, linkType, linkArgs)
         return
     end
     
+    -- Let the default UI handle all normal items, spells, and quests
     return orig_SetItemRef(link, text, button, chatFrame)
 end
 
--- 2. Hook OnHyperlinkEnter for hovering over links in chat
+-- 2. Hook OnHyperlinkEnter (Triggers when HOVERING the link in chat)
 GameTooltip:HookScript("OnHyperlinkEnter", function(self, link, text, button)
     local linkArgs = {strsplit(":", link)}
     local linkType = linkArgs[1]
     
     if linkType == "dpactchat" or linkType == "dpact" then
-        local title = linkArgs[2]
-        if not title then return end
-
         self:SetOwner(UIParent, "ANCHOR_CURSOR")
-        self:ClearLines()
-        self:AddLine("Dark Patron Pact", 0.64, 0.21, 0.93)
-        self:AddLine(title, 1, 1, 1)
-        
-        if linkType == "dpactchat" then
-            local goal, rarity = linkArgs[3], linkArgs[4]
-            local desc = ""
-            for i = 5, #linkArgs do desc = desc .. (i == 5 and "" or ":") .. tostring(linkArgs[i]) end
-            
-            self:AddLine("Rarity: " .. (rarity or "Standard"), 0.64, 0.21, 0.93)
-            self:AddLine(" ")
-            
-            -- Display the actual objective description instead of just a naked integer
-            if desc and desc ~= "" then
-                self:AddLine(desc, 1, 0.82, 0, true)
-                self:AddLine(" ")
-            end
-        elseif linkType == "dpact" then
-            local rarity, desc, reward = linkArgs[3], linkArgs[4], linkArgs[5]
-            self:AddLine("Rarity: " .. (rarity or "Standard"), 0.64, 0.21, 0.93)
-            self:AddLine(" ")
-            if desc and desc ~= "" then
-                self:AddLine(desc, 1, 0.82, 0, true)
-                self:AddLine(" ")
-            end
-            if reward and reward ~= "" then
-                self:AddLine(reward, 0.64, 0.21, 0.93)
-            end
-        end
-        
-        self:AddLine("A binding contract issued by the Dark Patron.", 1, 0.82, 0, true)
-        self:Show()
+        BuildPactTooltip(self, linkType, linkArgs)
     end
 end)
 
