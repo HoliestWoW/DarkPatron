@@ -274,7 +274,7 @@ local ActionTemplates = {
     { trigger = "DEFENSE_ROLL", baseDesc = "Parry, Dodge, or Block %s incoming attacks.", baseGoal = 15, baseFavor = 1, reqDefense = true, patterns = { "The [Adj] Bulwark", "Trial of the Bulwark" } },
     { trigger = "INTERRUPT_SPELL", baseDesc = "Successfully interrupt enemy spellcasts %s times.", baseGoal = 5, baseFavor = 2, reqInterrupt = true, patterns = { "The [Adj] Silencer", "Vow of the Silencer" } },
     { trigger = "UNARMED_DAMAGE", baseDesc = "Land %s successful unarmed melee attacks.", baseGoal = 20, baseFavor = 2, reqMelee = true, patterns = { "The [Adj] Brawler", "Fists of [Noun]" } },
-    { trigger = "NAKED_COMBAT", baseDesc = "Land %s attacks while wearing no chest armor.", baseGoal = 20, baseFavor = 3, patterns = { "The [Adj] Exhibitionist", "Pride of the Foolish" } },
+    { trigger = "NAKED_COMBAT", baseDesc = "Land %s attacks while wearing no chest armor.", baseGoal = 20, baseFavor = 2, patterns = { "The [Adj] Exhibitionist", "Pride of the Foolish" } },
 
     -- Elemental Magic
     { trigger = "SPELL_CAST_SUCCESS", baseDesc = "Successfully cast %s spells.", baseGoal = 50, baseFavor = 1, reqCaster = true, patterns = { "The [Adj] Weaver", "Words of [Noun]" } },
@@ -285,9 +285,9 @@ local ActionTemplates = {
     { trigger = "HOLY_FIRE_DAMAGE", baseDesc = "Deal %s Holy or Fire damage.", baseGoal = 250, baseFavor = 1, isStat = true, reqHolyFire = true, patterns = { "The [Adj] Zealot", "Purging [Noun]" } },
 
     -- Abstinence & Constraints (Hard Resets)
-    { trigger = "PURITY_KILL", baseDesc = "Strike the killing blow on %s targets without casting ANY Shadow magic. Fails on cast.", baseGoal = 10, baseFavor = 4, patterns = { "The Grimoire's Vow", "Rite of Purity" } },
-    { trigger = "FLAWLESS_KILL", baseDesc = "Strike the killing blow on %s targets without taking ANY damage. Fails on hit.", baseGoal = 5, baseFavor = 3, patterns = { "The [Adj] Ghost", "Flawless Execution" } },
-    { trigger = "PACIFIST_SURVIVAL", baseDesc = "Survive taking %s damage without dealing ANY damage yourself. Fails on hit.", baseGoal = 150, baseFavor = 3, isStat = true, patterns = { "The [Adj] Pacifist", "Vow of Non-Violence" } },
+    { trigger = "PURITY_KILL", baseDesc = "Strike the killing blow on %s targets without casting ANY Shadow magic. Fails on cast.", baseGoal = 10, baseFavor = 1, patterns = { "The Grimoire's Vow", "Rite of Purity" } },
+    { trigger = "FLAWLESS_KILL", baseDesc = "Strike the killing blow on %s targets without taking ANY damage. Fails on hit.", baseGoal = 5, baseFavor = 2, patterns = { "The [Adj] Ghost", "Flawless Execution" } },
+    { trigger = "PACIFIST_SURVIVAL", baseDesc = "Survive taking %s damage without dealing ANY damage yourself. Fails on hit.", baseGoal = 150, baseFavor = 2, isStat = true, patterns = { "The [Adj] Pacifist", "Vow of Non-Violence" } },
 
     -- Economy & World
     { trigger = "FETCH_ITEM", baseDesc = "Acquire and stockpile %s %s.", baseGoal = 10, baseFavor = 2, patterns = { "The Hoarder's Tribute", "Tribute of [Noun]" } },
@@ -304,9 +304,9 @@ local ActionTemplates = {
     { trigger = "ENCHANTED_SWING", baseDesc = "Land %s melee attacks while your weapon is temporarily enhanced (Stones/Poisons/Imbues).", baseGoal = 50, baseFavor = 2, reqMelee = true, patterns = { "The [Adj] Edge", "Blade of [Noun]" } },
     
     -- Elites & PvP
-    { trigger = "RISKY_KILL", baseDesc = "Strike the killing blow on %s enemies while below 33%% health.", baseGoal = 3, baseFavor = 3, patterns = { "The [Adj] Survivor", "Dance with [Noun]" } },
+    { trigger = "RISKY_KILL", baseDesc = "Strike the killing blow on %s enemies while below 33%% health.", baseGoal = 3, baseFavor = 2, patterns = { "The [Adj] Survivor", "Dance with [Noun]" } },
     { trigger = "DUEL_WIN", baseDesc = "Emerge victorious in %s non-lethal duels.", baseGoal = 2, baseFavor = 2, isPvP = true, patterns = { "The [Adj] Duelist", "Contract: The Duelist" } },
-    { trigger = "MAKGORA_WIN", baseDesc = "Emerge victorious from a Mak'gora duel to the death.", baseGoal = 1, baseFavor = 35, isPvP = true, isLegendary = true, minLvl = 19, reqHardcore = true, patterns = { "The Blood Debt", "Trial of the True [Noun]" } },
+    { trigger = "MAKGORA_WIN", baseDesc = "Emerge victorious from a Mak'gora duel to the death.", baseGoal = 1, baseFavor = 25, isPvP = true, isLegendary = true, minLvl = 19, reqHardcore = true, patterns = { "The Blood Debt", "Trial of the True [Noun]" } },
 }
 
 local DungeonBossDB = {
