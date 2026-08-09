@@ -13,6 +13,8 @@ local defaults = {
     MaxActiveSlots = 3, 
     HasJourneymanCavalry = false,
     HasMasterCavalry = false,
+    HasExpertCavalry = false,
+    HasArtisanCavalry = false,
     HasCapstone = false,
     HasAlchemistGrace = false, 
     HasTravelerStep = false,   
@@ -63,6 +65,7 @@ DP_Core:RegisterEvent("AUCTION_HOUSE_SHOW")
 DP_Core:RegisterEvent("MAIL_SHOW")
 DP_Core:RegisterEvent("PLAYER_LOGOUT")
 DP_Core:RegisterEvent("COMPANION_UPDATE")
+DP_Core:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 
 local devMode = false
 
@@ -263,23 +266,47 @@ local ZoneLoadingScreens = {
 }
 
 local ActionTemplates = {
+    -- Core Combat
     { trigger = "SWING_DAMAGE", baseDesc = "Land %s successful physical attacks.", baseGoal = 35, baseFavor = 1, reqMelee = true, patterns = { "The [Adj] Striker", "Striker of [Noun]" } },
     { trigger = "DAMAGE_TAKEN", baseDesc = "Survive taking %s total damage in combat.", baseGoal = 200, baseFavor = 1, isStat = true, patterns = { "The [Adj] Martyr", "Trial of the Martyr" } },
     { trigger = "ANY_DAMAGE", baseDesc = "Inflict %s total damage across all combat.", baseGoal = 350, baseFavor = 1, isStat = true, patterns = { "The [Adj] Annihilator", "Path of the Annihilator" } },
     { trigger = "PARTY_KILL", baseDesc = "Strike the killing blow on %s hostile targets.", baseGoal = 15, baseFavor = 2, patterns = { "The [Adj] Executioner", "Decree of the Executioner" } },
     { trigger = "DEFENSE_ROLL", baseDesc = "Parry, Dodge, or Block %s incoming attacks.", baseGoal = 15, baseFavor = 1, reqDefense = true, patterns = { "The [Adj] Bulwark", "Trial of the Bulwark" } },
-    { trigger = "SPELL_DAMAGE", baseDesc = "Deal %s magical damage to enemies.", baseGoal = 300, baseFavor = 1, isStat = true, reqCaster = true, patterns = { "The [Adj] Evoker", "Rite of the Evoker" } },
     { trigger = "INTERRUPT_SPELL", baseDesc = "Successfully interrupt enemy spellcasts %s times.", baseGoal = 5, baseFavor = 2, reqInterrupt = true, patterns = { "The [Adj] Silencer", "Vow of the Silencer" } },
+    { trigger = "UNARMED_DAMAGE", baseDesc = "Land %s successful unarmed melee attacks.", baseGoal = 20, baseFavor = 2, reqMelee = true, patterns = { "The [Adj] Brawler", "Fists of [Noun]" } },
+    { trigger = "NAKED_COMBAT", baseDesc = "Land %s attacks while wearing no chest armor.", baseGoal = 20, baseFavor = 3, patterns = { "The [Adj] Exhibitionist", "Pride of the Foolish" } },
+
+    -- Elemental Magic
+    { trigger = "SPELL_CAST_SUCCESS", baseDesc = "Successfully cast %s spells.", baseGoal = 50, baseFavor = 1, reqCaster = true, patterns = { "The [Adj] Weaver", "Words of [Noun]" } },
+    { trigger = "FROST_DAMAGE", baseDesc = "Deal %s Frost damage to enemies.", baseGoal = 300, baseFavor = 1, isStat = true, reqFrost = true, patterns = { "The [Adj] Glacier", "Chill of the Void" } },
+    { trigger = "SHADOW_DAMAGE", baseDesc = "Deal %s Shadow damage to enemies.", baseGoal = 300, baseFavor = 1, isStat = true, reqShadow = true, patterns = { "The [Adj] Cultist", "Whispers of the Abyss" } },
+    { trigger = "NATURE_DAMAGE", baseDesc = "Deal %s Nature damage to enemies.", baseGoal = 300, baseFavor = 1, isStat = true, reqNature = true, patterns = { "The [Adj] Storm", "Wrath of [Noun]" } },
+    { trigger = "ARCANE_DAMAGE", baseDesc = "Deal %s Arcane damage to enemies.", baseGoal = 300, baseFavor = 1, isStat = true, reqArcane = true, patterns = { "The [Adj] Scholar", "Surge of [Noun]" } },
+    { trigger = "HOLY_FIRE_DAMAGE", baseDesc = "Deal %s Holy or Fire damage.", baseGoal = 250, baseFavor = 1, isStat = true, reqHolyFire = true, patterns = { "The [Adj] Zealot", "Purging [Noun]" } },
+
+    -- Abstinence & Constraints (Hard Resets)
+    { trigger = "PURITY_KILL", baseDesc = "Strike the killing blow on %s targets without casting ANY Shadow magic. Fails on cast.", baseGoal = 10, baseFavor = 4, patterns = { "The Grimoire's Vow", "Rite of Purity" } },
+    { trigger = "FLAWLESS_KILL", baseDesc = "Strike the killing blow on %s targets without taking ANY damage. Fails on hit.", baseGoal = 5, baseFavor = 3, patterns = { "The [Adj] Ghost", "Flawless Execution" } },
+    { trigger = "PACIFIST_SURVIVAL", baseDesc = "Survive taking %s damage without dealing ANY damage yourself. Fails on hit.", baseGoal = 150, baseFavor = 3, isStat = true, patterns = { "The [Adj] Pacifist", "Vow of Non-Violence" } },
+
+    -- Economy & World
     { trigger = "FETCH_ITEM", baseDesc = "Acquire and stockpile %s %s.", baseGoal = 10, baseFavor = 2, patterns = { "The Hoarder's Tribute", "Tribute of [Noun]" } },
-    { trigger = "DUEL_WIN", baseDesc = "Emerge victorious in %s non-lethal duels.", baseGoal = 2, baseFavor = 2, isPvP = true, patterns = { "The [Adj] Duelist", "Contract: The Duelist" } },
-    { trigger = "MAKGORA_WIN", baseDesc = "Emerge victorious from a Mak'gora duel to the death.", baseGoal = 1, baseFavor = 35, isPvP = true, isLegendary = true, minLvl = 19, reqHardcore = true, patterns = { "The Blood Debt", "Trial of the True [Noun]" } },
     { trigger = "MONEY_LOOT", baseDesc = "Loot %s copper coins from the world.", baseGoal = 50, baseFavor = 1, isStat = true, patterns = { "The [Adj] Mercenary", "Greed of the [Adj] Mercenary" } },
     { trigger = "QUEST_COMPLETE", baseDesc = "Successfully complete and turn in %s quests.", baseGoal = 3, baseFavor = 2, patterns = { "The [Adj] Adventurer", "Path of the Adventurer" } },
+    { trigger = "GATHER_NODE", baseDesc = "Successfully gather from %s resource nodes.", baseGoal = 8, baseFavor = 2, reqGatherer = true, patterns = { "The [Adj] Harvester", "Bounty of the Earth" } },
+    { trigger = "LOOT_JUNK", baseDesc = "Loot %s poor quality (gray) items.", baseGoal = 15, baseFavor = 1, patterns = { "The [Adj] Scavenger", "Riches in [Noun]" } },
     { trigger = "FALLING_DAMAGE", baseDesc = "Survive taking %s falling damage.", baseGoal = 100, baseFavor = 1, isStat = true, patterns = { "The [Adj] Plunge", "Gravity's [Noun]" } },
-}
-
-local TradeGoodsDB = {
-    { name = "Linen Cloth", minLvl = 1, maxLvl = 20 }, { name = "Copper Ore", minLvl = 1, maxLvl = 20, reqProf = "Mining" }, { name = "Peacebloom", minLvl = 1, maxLvl = 15, reqProf = "Herbalism" }, { name = "Light Leather", minLvl = 1, maxLvl = 20, reqProf = "Skinning" }, { name = "Wool Cloth", minLvl = 16, maxLvl = 30 }, { name = "Tin Ore", minLvl = 16, maxLvl = 30, reqProf = "Mining" }, { name = "Medium Leather", minLvl = 16, maxLvl = 35, reqProf = "Skinning" }, { name = "Briarthorn", minLvl = 15, maxLvl = 30, reqProf = "Herbalism" }, { name = "Silk Cloth", minLvl = 28, maxLvl = 40 }, { name = "Iron Ore", minLvl = 28, maxLvl = 40, reqProf = "Mining" }, { name = "Heavy Leather", minLvl = 25, maxLvl = 45, reqProf = "Skinning" }, { name = "Kingsblood", minLvl = 25, maxLvl = 40, reqProf = "Herbalism" }, { name = "Mageweave Cloth", minLvl = 38, maxLvl = 50 }, { name = "Mithril Ore", minLvl = 38, maxLvl = 50, reqProf = "Mining" }, { name = "Thick Leather", minLvl = 36, maxLvl = 50, reqProf = "Skinning" }, { name = "Fadeleaf", minLvl = 35, maxLvl = 50, reqProf = "Herbalism" }, { name = "Runecloth", minLvl = 50, maxLvl = 60 }, { name = "Thorium Ore", minLvl = 50, maxLvl = 60, reqProf = "Mining" }, { name = "Rugged Leather", minLvl = 46, maxLvl = 60, reqProf = "Skinning" }, { name = "Dreamfoil", minLvl = 50, maxLvl = 60, reqProf = "Herbalism" }, { name = "Felcloth", minLvl = 50, maxLvl = 60 }, { name = "Essence of Earth", minLvl = 55, maxLvl = 60 }
+	
+	-- Tradeskill & Hobby
+    { trigger = "FISH_CATCH", baseDesc = "Successfully catch %s items from the waters of Azeroth.", baseGoal = 25, baseFavor = 2, reqFishing = true, patterns = { "The [Adj] Angler", "Bounty of the Depths" } },
+    { trigger = "CRAFT_ITEM", baseDesc = "Craft, forge, or cook %s items using your professions.", baseGoal = 20, baseFavor = 2, patterns = { "The [Adj] Artisan", "Master of the Forge" } },
+	{ trigger = "WELL_FED_KILL", baseDesc = "Strike the killing blow on %s targets while maintaining the Well Fed buff.", baseGoal = 15, baseFavor = 2, patterns = { "The [Adj] Banquet", "Glutton's [Noun]" } },
+    { trigger = "ENCHANTED_SWING", baseDesc = "Land %s melee attacks while your weapon is temporarily enhanced (Stones/Poisons/Imbues).", baseGoal = 50, baseFavor = 2, reqMelee = true, patterns = { "The [Adj] Edge", "Blade of [Noun]" } },
+    
+    -- Elites & PvP
+    { trigger = "RISKY_KILL", baseDesc = "Strike the killing blow on %s enemies while below 33%% health.", baseGoal = 3, baseFavor = 3, patterns = { "The [Adj] Survivor", "Dance with [Noun]" } },
+    { trigger = "DUEL_WIN", baseDesc = "Emerge victorious in %s non-lethal duels.", baseGoal = 2, baseFavor = 2, isPvP = true, patterns = { "The [Adj] Duelist", "Contract: The Duelist" } },
+    { trigger = "MAKGORA_WIN", baseDesc = "Emerge victorious from a Mak'gora duel to the death.", baseGoal = 1, baseFavor = 35, isPvP = true, isLegendary = true, minLvl = 19, reqHardcore = true, patterns = { "The Blood Debt", "Trial of the True [Noun]" } },
 }
 
 local DungeonBossDB = {
@@ -409,6 +436,28 @@ local function GetDeterministicHash(trigger, goal, offset)
     return hash
 end
 
+local function GetPlayerSkillLevel(skillName)
+    for i = 1, GetNumSkillLines() do
+        local name, _, _, skillRank = GetSkillLineInfo(i)
+        if name == skillName then return skillRank end
+    end
+    return 0
+end
+
+local function IsWellFed()
+    for i = 1, 40 do
+        local name = UnitAura("player", i, "HELPFUL")
+        if not name then break end
+        if name == "Well Fed" then return true end
+    end
+    return false
+end
+
+local function HasTempWeaponEnchant()
+    local hasMainHandEnchant, _, _, _, hasOffHandEnchant = GetWeaponEnchantInfo()
+    return hasMainHandEnchant or hasOffHandEnchant
+end
+
 local function PlayerHasSkill(skillName)
     for i = 1, GetNumSkillLines() do
         local name = select(1, GetSkillLineInfo(i))
@@ -442,6 +491,13 @@ local function PlayerCanComplete(template, pLvl)
     if template.reqMelee and not (pClass == "WARRIOR" or pClass == "ROGUE" or pClass == "PALADIN" or pClass == "SHAMAN" or pClass == "HUNTER" or pClass == "DRUID") then return false end
     if template.reqCaster and not (pClass == "MAGE" or pClass == "PRIEST" or pClass == "WARLOCK" or pClass == "SHAMAN" or pClass == "DRUID" or pClass == "PALADIN") then return false end
     if template.reqHolyFire and not (pClass == "PALADIN" or pClass == "PRIEST" or pClass == "MAGE" or pClass == "WARLOCK" or pClass == "SHAMAN") then return false end
+    
+    -- Elemental Specifics Fix
+    if template.reqShadow and not (pClass == "WARLOCK" or pClass == "PRIEST") then return false end
+    if template.reqFrost and not (pClass == "MAGE" or (pClass == "SHAMAN" and pLvl >= 20)) then return false end
+    if template.reqNature and not (pClass == "DRUID" or pClass == "SHAMAN" or pClass == "HUNTER") then return false end
+    if template.reqArcane and not (pClass == "MAGE" or pClass == "DRUID" or pClass == "HUNTER" or pClass == "PRIEST") then return false end
+    
     if template.reqDefense and not (pClass == "WARRIOR" or pClass == "PALADIN" or pClass == "ROGUE" or pClass == "HUNTER" or pClass == "SHAMAN") then return false end
     if template.reqInterrupt then
         if pClass == "SHAMAN" and pLvl < 4 then return false end
@@ -449,26 +505,53 @@ local function PlayerCanComplete(template, pLvl)
         if pClass == "MAGE" and pLvl < 24 then return false end
         if pClass == "PALADIN" or pClass == "DRUID" or pClass == "HUNTER" or pClass == "PRIEST" or pClass == "WARLOCK" then return false end
     end 
-    if template.reqGatherer then
-        local hasGathering = false
-        for i = 1, GetNumSkillLines() do
-            local name = select(1, GetSkillLineInfo(i))
-            if name == "Mining" or name == "Herbalism" or name == "Skinning" then hasGathering = true break end
-        end
-        if not hasGathering then return false end
+    local expectedMinSkill = math.max(1, (pLvl * 5) - 50)
+    
+    if template.trigger == "GATHER_NODE" then
+        local m = GetPlayerSkillLevel("Mining"); local h = GetPlayerSkillLevel("Herbalism"); local s = GetPlayerSkillLevel("Skinning")
+        if math.max(m, h, s) < expectedMinSkill then return false end
     end
+    
     if template.trigger == "DUNGEON_CLEAR" then
         local hasValidDung = false
-        for _, d in ipairs(DungeonDB) do
-            if pLvl >= d.minLvl and (not d.faction or d.faction == pFaction) then hasValidDung = true break end
-        end
+        for _, d in ipairs(DungeonDB) do if pLvl >= d.minLvl and (not d.faction or d.faction == pFaction) then hasValidDung = true break end end
         if not hasValidDung then return false end
     end
+    
     if template.trigger == "FETCH_ITEM" then
         local hasValidItem = false
-        for _, item in ipairs(TradeGoodsDB) do
-            if pLvl >= item.minLvl and pLvl <= (item.maxLvl + 10) then
-                if not item.reqProf or PlayerHasSkill(item.reqProf) then hasValidItem = true break end
+        for _, item in ipairs(DP.TradeGoodsDB) do
+            if item.reqProf then
+                local pSkill = GetPlayerSkillLevel(item.reqProf)
+                if pSkill >= expectedMinSkill and pSkill >= item.minSkill and pSkill <= (item.maxSkill + 50) then hasValidItem = true break end
+            else
+                if pLvl >= item.minLvl and pLvl <= (item.maxLvl + 10) then hasValidItem = true break end
+            end
+        end
+        if not hasValidItem then return false end
+    end
+
+    if template.trigger == "FISH_CATCH" then
+        local hasValidItem = false; local pSkill = GetPlayerSkillLevel("Fishing")
+        if pSkill >= expectedMinSkill then
+            for _, item in ipairs(DP.FishingDB) do if pSkill >= item.minSkill and pSkill <= (item.maxSkill + 50) then hasValidItem = true break end end
+        end
+        if not hasValidItem then return false end
+    end
+
+    if template.trigger == "CRAFT_ITEM" then
+        local hasValidItem = false
+        for _, item in ipairs(DP.CraftingDB) do
+            local pSkill = GetPlayerSkillLevel(item.reqProf)
+            
+            -- First, check if they meet the skill requirements
+            if pSkill >= expectedMinSkill and pSkill >= item.minSkill and pSkill <= (item.maxSkill + 50) then 
+                
+                -- Second, check if the item requires a specialization they don't have
+                if not item.reqSpec or PlayerHasSkill(item.reqSpec) then
+                    hasValidItem = true 
+                    break 
+                end
             end
         end
         if not hasValidItem then return false end
@@ -518,19 +601,40 @@ local function GenerateProceduralContract(allowRare)
     
     local targetNameStr = ""
     local targetZoneStr = ""
+    local expectedMinSkill = math.max(1, (pLvl * 5) - 50)
     
     if template.trigger == "FETCH_ITEM" then
         local validItems = {}
-        for _, item in ipairs(TradeGoodsDB) do
-            if pLvl >= item.minLvl and pLvl <= (item.maxLvl + 10) then 
-                if not item.reqProf or PlayerHasSkill(item.reqProf) then table.insert(validItems, item) end
+        for _, item in ipairs(DP.TradeGoodsDB) do
+            if item.reqProf then
+                local pSkill = GetPlayerSkillLevel(item.reqProf)
+                if pSkill >= expectedMinSkill and pSkill >= item.minSkill and pSkill <= (item.maxSkill + 50) then table.insert(validItems, item) end
+            else
+                if pLvl >= item.minLvl and pLvl <= (item.maxLvl + 10) then table.insert(validItems, item) end
             end
         end
         local chosenItem = (#validItems > 0) and validItems[math.random(#validItems)] or TradeGoodsDB[1]
         targetNameStr = chosenItem.name
+        
+    elseif template.trigger == "FISH_CATCH" then
+        local validItems = {}; local pSkill = GetPlayerSkillLevel("Fishing")
+        for _, item in ipairs(DP.FishingDB) do
+            if pSkill >= expectedMinSkill and pSkill >= item.minSkill and pSkill <= (item.maxSkill + 50) then table.insert(validItems, item) end
+        end
+        local chosenItem = (#validItems > 0) and validItems[math.random(#validItems)] or FishingDB[1]
+        targetNameStr = chosenItem.name
+        
+    elseif template.trigger == "CRAFT_ITEM" then
+        local validItems = {}
+        for _, item in ipairs(CraftingDB) do
+            local pSkill = GetPlayerSkillLevel(item.reqProf)
+            if pSkill >= expectedMinSkill and pSkill >= item.minSkill and pSkill <= (item.maxSkill + 50) then table.insert(validItems, item) end
+        end
+        local chosenItem = (#validItems > 0) and validItems[math.random(#validItems)] or CraftingDB[1]
+        targetNameStr = chosenItem.name
+        
     elseif template.trigger == "DUNGEON_CLEAR" then
-        local validDungeons = {}
-        local pFaction = UnitFactionGroup("player")
+        local validDungeons = {}; local pFaction = UnitFactionGroup("player")
         for _, dungeon in ipairs(DungeonDB) do
             if pLvl >= dungeon.minLvl and (not dungeon.faction or dungeon.faction == pFaction) then table.insert(validDungeons, dungeon) end
         end
@@ -547,8 +651,8 @@ local function GenerateProceduralContract(allowRare)
     local timeLimit = 0
     if isTimed then timeLimit = math.random(15, 30) * 60 end
     
-    local favorPayout = template.baseFavor + math.floor(pLvl / 5)
-    if isTimed then favorPayout = math.floor(favorPayout * 1.5) end
+    -- CHOKED FAVOR PAYOUT
+    local favorPayout = template.baseFavor + math.floor(pLvl / 20)
     
     local rarity = "Standard"
     local baseRewardText = ""
@@ -650,33 +754,11 @@ veilText:SetPoint("CENTER", 0, 50)
 veilText:SetTextColor(1, 0, 0)
 
 local isViolating = false
-local lastTalentExcess = 0
 
 local function CheckViolations()
     if not DarkPatronDB then return end
     isViolating = false
     local violationReason = ""
-
-    local totalTalentsSpent = 0
-    for tab = 1, GetNumTalentTabs() do
-        for i = 1, GetNumTalents(tab) do
-            local _, _, _, _, rank = GetTalentInfo(tab, i)
-            totalTalentsSpent = totalTalentsSpent + rank
-        end
-    end
-    
-    local talentExcess = totalTalentsSpent - DarkPatronDB.MaxTalentsAllowed
-    if talentExcess > 0 then
-        if talentExcess > lastTalentExcess then
-            local penalty = (talentExcess - lastTalentExcess) * 50
-            DarkPatronDB.DarkFavor = DarkPatronDB.DarkFavor - penalty
-            print(string.format("|cffff0000[Dark Patron]: Unearned knowledge detected! Your soul is cast into debt (-%d Dark Favor). Revert your talents or work off the debt.|r", penalty))
-            if PatronsLedger and PatronsLedger:IsShown() then PatronsLedger:GetScript("OnShow")(PatronsLedger) end
-        end
-        lastTalentExcess = talentExcess
-    else
-        lastTalentExcess = 0
-    end
 
     for slot = 1, 19 do
         local itemLink = GetInventoryItemLink("player", slot)
@@ -1126,6 +1208,15 @@ C_Timer.NewTicker(0.25, function()
         if StreakFrame:IsShown() then StreakFrame:Hide() end
         return
     end
+
+    local elapsed = currentTime - lastTime
+    local remaining = math.max(0, 1200 - elapsed)
+    
+    -- Instantly hide the frame when the wick burns out
+    if remaining <= 0 then
+        if StreakFrame:IsShown() then StreakFrame:Hide() end
+        return
+    end
     
     if not StreakFrame:IsShown() then StreakFrame:Show() end
 
@@ -1321,12 +1412,23 @@ tinsert(UISpecialFrames, Ledger:GetName())
 local titleText = _G["PatronsLedgerTitleText"]
 if titleText then titleText:ClearAllPoints(); titleText:SetPoint("TOP", Ledger, "TOP", 0, -12) end
 
-local closeBtn = _G["PatronsLedgerCloseButton"]
-if closeBtn then closeBtn:ClearAllPoints(); closeBtn:SetPoint("TOPRIGHT", Ledger, "TOPRIGHT", -4, -4) end
+for _, child in ipairs({Ledger:GetChildren()}) do
+    if child:IsObjectType("Button") then
+        child:Hide()
+        child:SetAlpha(0)
+        child:EnableMouse(false)
+        child:UnregisterAllEvents()
+        child.Show = function() end 
+    end
+end
+
+local customCloseBtn = CreateFrame("Button", nil, Ledger, "UIPanelCloseButton")
+customCloseBtn:SetPoint("TOPRIGHT", Ledger, "TOPRIGHT", 3, 3)
+customCloseBtn:SetScript("OnClick", function() Ledger:Hide() end)
 
 local HelpBtn = CreateFrame("Button", nil, Ledger, "UIPanelButtonTemplate")
 HelpBtn:SetSize(24, 24)
-if closeBtn then HelpBtn:SetPoint("RIGHT", closeBtn, "LEFT", -4, 0) else HelpBtn:SetPoint("TOPRIGHT", Ledger, "TOPRIGHT", -32, -4) end
+HelpBtn:SetPoint("RIGHT", customCloseBtn, "LEFT", -4, 0)
 HelpBtn:SetText("?")
 HelpBtn:SetScript("OnClick", function() currentStep = 1; UpdateTutorialPage(); WelcomeModal:Show() end)
 
@@ -1631,7 +1733,7 @@ for i = 1, 6 do
         for j = 1, maxSlots do if activeCards[j]:IsMouseOver() then droppedOnActive = true break end end
         if droppedOnActive then
             if #DarkPatronDB.ActiveMissions >= maxSlots then print(string.format("Dark Patron: Active Pacts are full (Max %d). Discard a pact first.", maxSlots)) return end
-            local chosen = table.remove(DarkPatronDB.PoolOfSix, i)
+            local chosen = DarkPatronDB.PoolOfSix[i]; DarkPatronDB.PoolOfSix[i] = nil
             if chosen.isTimed then chosen.expiresAt = time() + chosen.timeLimit end 
             table.insert(DarkPatronDB.ActiveMissions, chosen)
             
@@ -1640,7 +1742,7 @@ for i = 1, 6 do
                 DarkPatronDB.HasInitializedAwakening = true
                 print("|cffff0000[Dark Patron]: You must now be resting (Inn/Capital City) to access the board.|r")
             end
-            RefillMissionPool(); Ledger:GetScript("OnShow")(Ledger); UpdateTracker()
+            Ledger:GetScript("OnShow")(Ledger); UpdateTracker()
         end
     end)
     
@@ -1661,7 +1763,7 @@ for i = 1, 6 do
         if DarkPatronDB.PoolOfSix[i] then
             local maxSlots = DarkPatronDB.MaxActiveSlots or 3
             if #DarkPatronDB.ActiveMissions >= maxSlots then print(string.format("Dark Patron: Active Pacts are full (Max %d). Discard a pact first.", maxSlots)) return end
-            local chosen = table.remove(DarkPatronDB.PoolOfSix, i)
+            local chosen = DarkPatronDB.PoolOfSix[i]; DarkPatronDB.PoolOfSix[i] = nil
             if chosen.isTimed then chosen.expiresAt = time() + chosen.timeLimit end 
             table.insert(DarkPatronDB.ActiveMissions, chosen)
             
@@ -1670,7 +1772,7 @@ for i = 1, 6 do
                 DarkPatronDB.HasInitializedAwakening = true
                 print("|cffff0000[Dark Patron]: The Veil descends. You must now rest in a rested area to commune with the board.|r")
             end
-            RefillMissionPool(); Ledger:GetScript("OnShow")(Ledger); UpdateTracker()
+            Ledger:GetScript("OnShow")(Ledger); UpdateTracker()
         end
     end)
     poolButtons[i] = btnCard
@@ -1985,7 +2087,9 @@ local function CreateStoreCard(isApexTab, index, titleText, descText, costText, 
     return card
 end
 
-local function GetTalentCost() return math.floor(10 + ((DarkPatronDB.MaxTalentsAllowed or 0) * 5)) end
+local function GetTalentCost() 
+    return math.floor(20 + ((DarkPatronDB.MaxTalentsAllowed or 0) * 15)) 
+end
 
 local function UpdateBazaarUI()
     local isPlayerSSF = IsSelfFound()
@@ -2023,13 +2127,17 @@ local function UpdateBazaarUI()
     if btnLiquidateDark then if bazaarCanEdit and btnLiquidateDark.canAffordFunc() then btnLiquidateDark:Enable() else btnLiquidateDark:Disable() end end
 end
 
+local isTBC = (WOW_PROJECT_ID == WOW_PROJECT_BURNING_CRUSADE_CLASSIC)
+local groundLvl = isTBC and 30 or 40
+local groundCost = isTBC and 3 or 5
+
 -- LEVELING TAB CARDS
-CreateStoreCard(false, 1, "Uncommon Armaments", "Unlock the right to equip Uncommon (Green) quality gear permanently.", "18 Favor", function() if DarkPatronDB.DarkFavor >= 18 then DarkPatronDB.DarkFavor = DarkPatronDB.DarkFavor - 18; DarkPatronDB.MaxGearQuality = 2; PlaySound(8959) CheckViolations() Ledger:GetScript("OnShow")(Ledger) end end, function() return DarkPatronDB.MaxGearQuality >= 2 end, function() return DarkPatronDB.DarkFavor >= 18 end)
+CreateStoreCard(false, 1, "Uncommon Armaments", "Unlock the right to equip Uncommon (Green) quality gear permanently.", "35 Favor", function() if DarkPatronDB.DarkFavor >= 35 then DarkPatronDB.DarkFavor = DarkPatronDB.DarkFavor - 35; DarkPatronDB.MaxGearQuality = 2; PlaySound(8959) CheckViolations() Ledger:GetScript("OnShow")(Ledger) end end, function() return DarkPatronDB.MaxGearQuality >= 2 end, function() return DarkPatronDB.DarkFavor >= 35 end)
 CreateStoreCard(false, 2, "Grant of Knowledge", "Grants the right to allocate 1 additional talent point (Repeatable).", "", function() local cost = GetTalentCost() if DarkPatronDB.DarkFavor >= cost then DarkPatronDB.DarkFavor = DarkPatronDB.DarkFavor - cost; DarkPatronDB.MaxTalentsAllowed = (DarkPatronDB.MaxTalentsAllowed or 0) + 1; PlaySound(8959) CheckViolations(); if Ledger:IsShown() then Ledger:GetScript("OnShow")(Ledger) end end end, nil, function() return DarkPatronDB.DarkFavor >= GetTalentCost() end)
 CreateStoreCard(false, 3, "Rare Armaments", "Unlock the right to equip Rare (Blue) quality gear permanently.", "2 Dark Sigils", function() if DarkPatronDB.DarkSigils >= 2 then DarkPatronDB.DarkSigils = DarkPatronDB.DarkSigils - 2; DarkPatronDB.MaxGearQuality = 3; PlaySound(8959) CheckViolations() Ledger:GetScript("OnShow")(Ledger) end end, function() return DarkPatronDB.MaxGearQuality >= 3 end, function() return DarkPatronDB.DarkSigils >= 2 end)
-CreateStoreCard(false, 4, "Journeyman's Cavalry", "Unlock the right to summon and ride your Level 40 (60% speed) mount.", "5 Dark Sigils", function() if DarkPatronDB.DarkSigils >= 5 then DarkPatronDB.DarkSigils = DarkPatronDB.DarkSigils - 5; DarkPatronDB.HasJourneymanCavalry = true; PlaySound(8959) Ledger:GetScript("OnShow")(Ledger) end end, function() return DarkPatronDB.HasJourneymanCavalry end, function() return DarkPatronDB.DarkSigils >= 5 end)
-CreateStoreCard(false, 5, "The Blood Contract", "Trade 30 Favor to hunt a level-appropriate Elite. Prioritizes local zone.", "30 Favor", function()
-    if DarkPatronDB.DarkFavor >= 30 then
+CreateStoreCard(false, 4, "Journeyman's Cavalry", string.format("Unlock the right to summon and ride your Level %d (60%% speed) mount.", groundLvl), groundCost .. " Dark Sigils", function() if DarkPatronDB.DarkSigils >= groundCost then DarkPatronDB.DarkSigils = DarkPatronDB.DarkSigils - groundCost; DarkPatronDB.HasJourneymanCavalry = true; PlaySound(8959) Ledger:GetScript("OnShow")(Ledger) end end, function() return DarkPatronDB.HasJourneymanCavalry end, function() return DarkPatronDB.DarkSigils >= groundCost end)
+CreateStoreCard(false, 5, "The Blood Contract", "Trade 50 Favor to hunt a level-appropriate Elite. Prioritizes local zone.", "50 Favor", function()
+    if DarkPatronDB.DarkFavor >= 50 then
         local maxSlots = DarkPatronDB.MaxActiveSlots or 3
         if #DarkPatronDB.ActiveMissions >= maxSlots then print("The Void: Your Active Pacts are full. Discard one before signing a Blood Contract.") return end
         
@@ -2042,8 +2150,8 @@ CreateStoreCard(false, 5, "The Blood Contract", "Trade 30 Favor to hunt a level-
             if elite.level >= (pLvl - 7) and elite.level <= (pLvl + 4) and (elite.faction == "Any" or elite.faction == pFaction) then
                 local isUsed = false
                 if DarkPatronDB.CompletedElites then for _, completedId in ipairs(DarkPatronDB.CompletedElites) do if completedId == elite.id then isUsed = true break end end end
-                for _, active in ipairs(DarkPatronDB.ActiveMissions) do if active.targetName == elite.name then isUsed = true break end end
-                for _, poolItem in ipairs(DarkPatronDB.PoolOfSix) do if poolItem.targetName == elite.name then isUsed = true break end end
+                for _, active in pairs(DarkPatronDB.ActiveMissions) do if active.targetName == elite.name then isUsed = true break end end
+                for _, poolItem in pairs(DarkPatronDB.PoolOfSix) do if poolItem.targetName == elite.name then isUsed = true break end end
                 if DarkPatronDB.EliteBounties then for _, eliteItem in ipairs(DarkPatronDB.EliteBounties) do if eliteItem.targetName == elite.name then isUsed = true break end end end
                 
                 if not isUsed then table.insert(validElites, elite) if string.find(elite.zone, currentZone) then table.insert(localElites, elite) end end
@@ -2053,7 +2161,7 @@ CreateStoreCard(false, 5, "The Blood Contract", "Trade 30 Favor to hunt a level-
         if #validElites == 0 then print("The Void: The Blood Contract is void. No valid targets remain.") return end
         
         local chosen = (#localElites > 0) and localElites[math.random(#localElites)] or validElites[math.random(#validElites)]
-        DarkPatronDB.DarkFavor = DarkPatronDB.DarkFavor - 30
+        DarkPatronDB.DarkFavor = DarkPatronDB.DarkFavor - 50
         local favorReward = (chosen.rarity == "Boss" or chosen.rarity == "Rare Elite") and 5 or 3
         local sigilReward = (chosen.rarity == "Boss" or chosen.rarity == "Rare Elite") and "+1 Apex Sigil" or "+1 Dark Sigil"
         
@@ -2064,26 +2172,31 @@ CreateStoreCard(false, 5, "The Blood Contract", "Trade 30 Favor to hunt a level-
         print("THE VOID: Blood Contract signed! A specific targeted Hunt has been bound to your ledger.")
         Ledger:GetScript("OnShow")(Ledger)
     else 
-        print("The Void: Insufficient Favor (Requires 30).") 
+        print("The Void: Insufficient Favor (Requires 50).") 
     end
-end, nil, function() return DarkPatronDB.DarkFavor >= 30 end)
+end, nil, function() return DarkPatronDB.DarkFavor >= 50 end)
 CreateStoreCard(false, 6, "The Apex Rite", "Sacrifice Elite Dark Sigils to forge 1 forbidden Apex Sigil.", "5 Dark Sigils", function() if DarkPatronDB.DarkSigils >= 5 then DarkPatronDB.DarkSigils = DarkPatronDB.DarkSigils - 5; DarkPatronDB.ApexSigils = DarkPatronDB.ApexSigils + 1; PlaySound(8959) Ledger:GetScript("OnShow")(Ledger) else print("Dark Patron: Insufficient Dark Sigils.") end end, nil, function() return DarkPatronDB.DarkSigils >= 5 end)
 CreateStoreCard(false, 7, "The Alchemist's Grace", "Permanently reduce the Coward's Tax for abandoning active pacts down to 1 Favor.", "35 Favor", function() if DarkPatronDB.DarkFavor >= 35 then DarkPatronDB.DarkFavor = DarkPatronDB.DarkFavor - 35; DarkPatronDB.HasAlchemistGrace = true; PlaySound(8959) Ledger:GetScript("OnShow")(Ledger) else print("Dark Patron: Insufficient Dark Favor (Requires 35).") end end, function() return DarkPatronDB.HasAlchemistGrace end, function() return DarkPatronDB.DarkFavor >= 35 end)
 CreateStoreCard(false, 8, "The Pathfinder's Intuition", "Permanently makes board reshuffles completely free (0 Favor cost).", "50 Favor", function() if DarkPatronDB.DarkFavor >= 50 then DarkPatronDB.DarkFavor = DarkPatronDB.DarkFavor - 50; DarkPatronDB.HasTravelerStep = true; PlaySound(8959) Ledger:GetScript("OnShow")(Ledger) else print("Dark Patron: Insufficient Dark Favor (Requires 50).") end end, function() return DarkPatronDB.HasTravelerStep end, function() return DarkPatronDB.DarkFavor >= 50 end)
 CreateStoreCard(false, 9, "The Sovereign Awakening", "Gamble 30 Dark Favor for a 10% chance to forge 1 Apex Sigil. Failure destroys your Favor.", "30 Favor", function() if DarkPatronDB.DarkFavor >= 30 then DarkPatronDB.DarkFavor = DarkPatronDB.DarkFavor - 30; if math.random(1, 100) <= 10 then DarkPatronDB.ApexSigils = DarkPatronDB.ApexSigils + 1; PlaySound(8959); print("DARK PATRON: THE AWAKENING SUCCEEDS! An Apex Sigil has been forged from the void!") else PlaySound(6243); print("DARK PATRON: The Sovereign rejects your offering... Your 30 Dark Favor is lost to the void.") end Ledger:GetScript("OnShow")(Ledger) end end, nil, function() return DarkPatronDB.DarkFavor >= 30 end)
 CreateStoreCard(false, 10, "Extended Ledger", "Permanently unlock a 4th simultaneous Active Pact slot.", "50 Favor", function() if DarkPatronDB.DarkFavor >= 50 then DarkPatronDB.DarkFavor = DarkPatronDB.DarkFavor - 50; DarkPatronDB.MaxActiveSlots = 4; PlaySound(8959) Ledger:GetScript("OnShow")(Ledger) end end, function() return (DarkPatronDB.MaxActiveSlots or 3) >= 4 end, function() return DarkPatronDB.DarkFavor >= 50 end)
-CreateStoreCard(false, 11, "The Hoarder's Key", "Unlock the right to access and use your Bank.", "25 Favor", function() if DarkPatronDB.DarkFavor >= 25 then DarkPatronDB.DarkFavor = DarkPatronDB.DarkFavor - 25; DarkPatronDB.HasBank = true; PlaySound(8959) Ledger:GetScript("OnShow")(Ledger) end end, function() return DarkPatronDB.HasBank end, function() return DarkPatronDB.DarkFavor >= 25 end)
+CreateStoreCard(false, 11, "The Hoarder's Key", "Unlock the right to access and use your Bank.", "40 Favor", function() if DarkPatronDB.DarkFavor >= 40 then DarkPatronDB.DarkFavor = DarkPatronDB.DarkFavor - 40; DarkPatronDB.HasBank = true; PlaySound(8959) Ledger:GetScript("OnShow")(Ledger) end end, function() return DarkPatronDB.HasBank end, function() return DarkPatronDB.DarkFavor >= 40 end)
 CreateStoreCard(false, 12, "The Merchant's Writ", "Unlock the right to buy and sell on the Auction House.", "40 Favor", function() if DarkPatronDB.DarkFavor >= 40 then DarkPatronDB.DarkFavor = DarkPatronDB.DarkFavor - 40; DarkPatronDB.HasAuction = true; PlaySound(8959) Ledger:GetScript("OnShow")(Ledger) end end, function() return DarkPatronDB.HasAuction end, function() return DarkPatronDB.DarkFavor >= 40 end, true)
 CreateStoreCard(false, 13, "The Courier's Seal", "Unlock the right to open and send Mail.", "20 Favor", function() if DarkPatronDB.DarkFavor >= 20 then DarkPatronDB.DarkFavor = DarkPatronDB.DarkFavor - 20; DarkPatronDB.HasMail = true; PlaySound(8959) Ledger:GetScript("OnShow")(Ledger) end end, function() return DarkPatronDB.HasMail end, function() return DarkPatronDB.DarkFavor >= 20 end, true)
 CreateStoreCard(false, 14, "Capstone Awakening", "Unlock your 31-point ultimate talent. Required to spend 31st point.", "1 Apex Sigil", function() if DarkPatronDB.ApexSigils >= 1 then DarkPatronDB.ApexSigils = DarkPatronDB.ApexSigils - 1; DarkPatronDB.HasCapstone = true; DarkPatronDB.MaxTalentsAllowed = DarkPatronDB.MaxTalentsAllowed + 1; PlaySound(8959) CheckViolations() Ledger:GetScript("OnShow")(Ledger) end end, function() return DarkPatronDB.HasCapstone end, function() return DarkPatronDB.ApexSigils >= 1 end)
 
 -- === APEX ENDGAME SANCTUM CARDS ===
-CreateStoreCard(true, 1, "Master's Cavalry", "Unlock the right to summon and ride your Level 60 Epic (100% speed) mount.", "10 Apex Sigils", function() if DarkPatronDB.ApexSigils >= 10 then DarkPatronDB.ApexSigils = DarkPatronDB.ApexSigils - 10; DarkPatronDB.HasMasterCavalry = true; PlaySound(8959) Ledger:GetScript("OnShow")(Ledger) end end, function() return DarkPatronDB.HasMasterCavalry end, function() return DarkPatronDB.ApexSigils >= 10 end)
+CreateStoreCard(true, 1, "Master's Cavalry", "Unlock the right to summon and ride your Epic (100% speed) ground mount.", "10 Apex Sigils", function() if DarkPatronDB.ApexSigils >= 10 then DarkPatronDB.ApexSigils = DarkPatronDB.ApexSigils - 10; DarkPatronDB.HasMasterCavalry = true; PlaySound(8959) Ledger:GetScript("OnShow")(Ledger) end end, function() return DarkPatronDB.HasMasterCavalry end, function() return DarkPatronDB.ApexSigils >= 10 end)
 CreateStoreCard(true, 2, "Epic Armaments", "Unlock the right to equip Epic (Purple) gear permanently.", "5 Apex Sigils", function() if DarkPatronDB.ApexSigils >= 5 then DarkPatronDB.ApexSigils = DarkPatronDB.ApexSigils - 5; DarkPatronDB.MaxGearQuality = 4; PlaySound(8959) CheckViolations() Ledger:GetScript("OnShow")(Ledger) end end, function() return DarkPatronDB.MaxGearQuality >= 4 end, function() return DarkPatronDB.ApexSigils >= 5 end)
 CreateStoreCard(true, 3, "The Artisan's Sanction", "Unlock the right to equip and use Epic-quality crafted gear.", "3 Dark Sigils", function() if DarkPatronDB.DarkSigils >= 3 then DarkPatronDB.DarkSigils = DarkPatronDB.DarkSigils - 3; DarkPatronDB.HasArtisanSanction = true; PlaySound(8959) CheckViolations() Ledger:GetScript("OnShow")(Ledger) else print("Dark Patron: Insufficient Dark Sigils.") end end, function() return DarkPatronDB.HasArtisanSanction end, function() return DarkPatronDB.DarkSigils >= 3 end)
 CreateStoreCard(true, 4, "Alchemist's Sight", "Unlock the right to use powerful combat alterations (LIPs, Petris, FAPs).", "3 Apex Sigils", function() if DarkPatronDB.ApexSigils >= 3 then DarkPatronDB.ApexSigils = DarkPatronDB.ApexSigils - 3; DarkPatronDB.HasAlchemistSight = true; PlaySound(8959) Ledger:GetScript("OnShow")(Ledger) end end, function() return DarkPatronDB.HasAlchemistSight end, function() return DarkPatronDB.ApexSigils >= 3 end)
 CreateStoreCard(true, 5, "Enchanter's Writ", "Unlock the right to apply high-tier endgame weapon enchants (Crusader, Spellpower).", "3 Apex Sigils", function() if DarkPatronDB.ApexSigils >= 3 then DarkPatronDB.ApexSigils = DarkPatronDB.ApexSigils - 3; DarkPatronDB.HasEnchantersWrit = true; PlaySound(8959) Ledger:GetScript("OnShow")(Ledger) end end, function() return DarkPatronDB.HasEnchantersWrit end, function() return DarkPatronDB.ApexSigils >= 3 end)
 CreateStoreCard(true, 6, "The World's Boon", "Unlock the right to retain World Buffs. The Patron strips unsanctioned boons instantly.", "2 Apex Sigils", function() if DarkPatronDB.ApexSigils >= 2 then DarkPatronDB.ApexSigils = DarkPatronDB.ApexSigils - 2; DarkPatronDB.HasWorldsBoon = true; PlaySound(8959) Ledger:GetScript("OnShow")(Ledger) end end, function() return DarkPatronDB.HasWorldsBoon end, function() return DarkPatronDB.ApexSigils >= 2 end)
+if isTBC then
+    CreateStoreCard(true, 7, "Expert's Cavalry", "Unlock the right to summon and ride your Level 70 Flying (60% speed) mount.", "8 Apex Sigils", function() if DarkPatronDB.ApexSigils >= 8 then DarkPatronDB.ApexSigils = DarkPatronDB.ApexSigils - 8; DarkPatronDB.HasExpertCavalry = true; PlaySound(8959) Ledger:GetScript("OnShow")(Ledger) end end, function() return DarkPatronDB.HasExpertCavalry end, function() return DarkPatronDB.ApexSigils >= 8 end)
+    
+    CreateStoreCard(true, 8, "Artisan's Cavalry", "Unlock the right to ride your Level 70 Epic Flying (280% speed) mount.", "15 Apex Sigils", function() if DarkPatronDB.ApexSigils >= 15 then DarkPatronDB.ApexSigils = DarkPatronDB.ApexSigils - 15; DarkPatronDB.HasArtisanCavalry = true; PlaySound(8959) Ledger:GetScript("OnShow")(Ledger) end end, function() return DarkPatronDB.HasArtisanCavalry end, function() return DarkPatronDB.ApexSigils >= 15 end)
+end
 
 tabBoardBtn:SetScript("OnClick", function() if WelcomeModal and WelcomeModal:IsShown() then return end currentView = "board"; BoardContainer:Show(); BazaarContainer:Hide(); BazaarScrollBar:Hide(); ApexContainer:Hide(); ApexScrollBar:Hide(); ChronicleContainer:Hide() end)
 tabBazaarBtn:SetScript("OnClick", function() if WelcomeModal and WelcomeModal:IsShown() then return end currentView = "bazaar"; BazaarContainer:Show(); BoardContainer:Hide(); BazaarScrollBar:Show(); ApexContainer:Hide(); ApexScrollBar:Hide(); ChronicleContainer:Hide(); UpdateBazaarScrollStates() end)
@@ -2283,10 +2396,12 @@ GameTooltip:HookScript("OnTooltipSetUnit", function(self)
 
     for _, mission in ipairs(DarkPatronDB.ActiveMissions) do
         if mission.trigger == "SPECIFIC_KILL" and mission.targetName == unitName then
-            self:AddLine("Dark Patron Target", 0.64, 0.21, 0.93)
+            self:AddLine("Dark Patron Target: " .. (mission.title or "Hunt"), 0.64, 0.21, 0.93)
+            self:AddLine(string.format("Execute %s", unitName), 1, 0.5, 0)
             self:Show()
         elseif mission.trigger == "PARTY_KILL" and isHostile then
-            self:AddLine(string.format("Patron Pact: %d / %d", mission.current or 0, mission.goal), 1, 0.5, 0)
+            self:AddLine("Dark Patron Pact: " .. (mission.title or "Bounty"), 0.64, 0.21, 0.93)
+            self:AddLine(string.format("Hostile Kills: %d / %d", mission.current or 0, mission.goal), 1, 0.5, 0)
             self:Show()
         end
     end
@@ -2300,7 +2415,8 @@ GameTooltip:HookScript("OnTooltipSetItem", function(self)
     
     for _, mission in ipairs(DarkPatronDB.ActiveMissions) do
         if mission.trigger == "FETCH_ITEM" and mission.targetName == itemName then
-            self:AddLine(string.format("Pact Required: %d / %d", mission.current or 0, mission.goal), 1, 0.5, 0)
+            self:AddLine("Dark Patron Pact: " .. (mission.title or "Hoarder"), 0.64, 0.21, 0.93)
+            self:AddLine(string.format("Gathered: %d / %d", mission.current or 0, mission.goal), 1, 0.5, 0)
             self:Show()
         end
     end
@@ -2477,21 +2593,24 @@ end
 RefillMissionPool = function(isRetry)
     DarkPatronDB.PoolOfSix = DarkPatronDB.PoolOfSix or {}
     local safetyBrake = 0
-    while #DarkPatronDB.PoolOfSix < 6 and safetyBrake < 100 do
-        safetyBrake = safetyBrake + 1
-        local rareCount = 0
-        for _, m in ipairs(DarkPatronDB.ActiveMissions) do if m.rarity == "Rare" then rareCount = rareCount + 1 end end
-        for _, m in ipairs(DarkPatronDB.PoolOfSix) do if m.rarity == "Rare" then rareCount = rareCount + 1 end end
-        
-        local newContract = GenerateProceduralContract(rareCount == 0)
-        local isDup = false
-        for _, m in ipairs(DarkPatronDB.ActiveMissions) do if m.trigger == newContract.trigger and m.targetName == newContract.targetName then isDup = true break end end
-        for _, m in ipairs(DarkPatronDB.PoolOfSix) do if m.trigger == newContract.trigger and m.targetName == newContract.targetName then isDup = true break end end
-        
-        DarkPatronDB.RecentlyCompleted = DarkPatronDB.RecentlyCompleted or {}
-        for _, t in ipairs(DarkPatronDB.RecentlyCompleted) do if t == (newContract.trigger .. (newContract.targetName or "")) then isDup = true break end end
-        
-        if not isDup then table.insert(DarkPatronDB.PoolOfSix, newContract) end
+    
+    for slot = 1, 6 do
+        while not DarkPatronDB.PoolOfSix[slot] and safetyBrake < 100 do
+            safetyBrake = safetyBrake + 1
+            local rareCount = 0
+            for _, m in pairs(DarkPatronDB.ActiveMissions) do if m.rarity == "Rare" then rareCount = rareCount + 1 end end
+            for _, m in pairs(DarkPatronDB.PoolOfSix) do if m.rarity == "Rare" then rareCount = rareCount + 1 end end
+            
+            local newContract = GenerateProceduralContract(rareCount == 0)
+            local isDup = false
+            for _, m in pairs(DarkPatronDB.ActiveMissions) do if m.trigger == newContract.trigger and m.targetName == newContract.targetName then isDup = true break end end
+            for _, m in pairs(DarkPatronDB.PoolOfSix) do if m.trigger == newContract.trigger and m.targetName == newContract.targetName then isDup = true break end end
+            
+            DarkPatronDB.RecentlyCompleted = DarkPatronDB.RecentlyCompleted or {}
+            for _, t in ipairs(DarkPatronDB.RecentlyCompleted) do if t == (newContract.trigger .. (newContract.targetName or "")) then isDup = true break end end
+            
+            if not isDup then DarkPatronDB.PoolOfSix[slot] = newContract end
+        end
     end
     
     local pLvl = UnitLevel("player") or 1
@@ -2538,9 +2657,8 @@ local function FulfillMission(index, mission)
     local lastPactTime = DarkPatronDB.LastPactTime or 0
     
     if currentStreak > 0 and lastPactTime > 0 then
-        if (currentTime - lastPactTime) > 1200 then 
+        if (currentTime - lastPactTime) >= 1200 then 
             currentStreak = 0
-            PatronWhisper("Your momentum wanes. The streak has crumbled to dust.") 
         end
     end
 
@@ -2548,9 +2666,17 @@ local function FulfillMission(index, mission)
     DarkPatronDB.LastPactTime = currentTime
     
     local streakBonus = 0
-    if DarkPatronDB.CurrentStreak > 0 and DarkPatronDB.CurrentStreak % 3 == 0 then 
+    if DarkPatronDB.CurrentStreak > 0 and DarkPatronDB.CurrentStreak % 5 == 0 then 
         streakBonus = 2; PlaySound(565853); 
-        PatronWhisper("Three pacts sealed in blood... Your precious Grimoire of Purity forbids the casting of shadow magic, but it cannot stop you from spending it.") 
+        
+        local streakWhispers = {
+            "Five pacts executed flawlessly. The anima of your victims ripples through the In-Between, mortal. A highly profitable streak... take your cut.",
+            "Five souls harvested in rapid succession. A magnificent tithe. Revendreth drinks your offerings, mortal. Claim your Favor and continue the slaughter.",
+            "Five threads severed. Every life you end feeds the Maw. Claim your miserable Favor, mortal, until the day your own soul is dragged into the darkness.",
+            "Five lives ended. The machinery of Death groans under the weight of the souls you send across the veil. Take your reward, anomaly. The Shadowlands hunger."
+        }
+        
+        PatronWhisper(streakWhispers[math.random(#streakWhispers)]) 
     end
 
     if mission.isLegendary then 
@@ -2573,7 +2699,7 @@ local function FulfillMission(index, mission)
     
     PlayCinematicSplash(rewardString); DP_EvaluateBazaarAlert()
 	
-	DarkPatronDB.TotalPactsCompleted = (DarkPatronDB.TotalPactsCompleted or 0)
+    DarkPatronDB.TotalPactsCompleted = (DarkPatronDB.TotalPactsCompleted or 0) + 1
     DarkPatronDB.ContractTypesCompleted = DarkPatronDB.ContractTypesCompleted or {}
     DarkPatronDB.ContractTypesCompleted[mission.trigger] = (DarkPatronDB.ContractTypesCompleted[mission.trigger] or 0) + 1
 
@@ -2592,7 +2718,7 @@ local function FulfillMission(index, mission)
     local rewardTextFull = mission.rewardText and tostring(mission.rewardText):gsub(":", "") or ""
 
     local hyperlink = string.format("\124c%s\124Hdpact:%s:%s:%s:%s\124h[%s]\124h\124r", color, title, mission.rarity or "Standard", desc, rewardTextFull, title)
-    DEFAULT_CHAT_FRAME:AddMessage(string.format("DARK PATRON: Contract Fulfilled %s -> %s", hyperlink, rewardString))
+    DEFAULT_CHAT_FRAME:AddMessage(string.format("DARK PATRON: Contract Fulfilled %s!", hyperlink))
 
     RecordCompletedPact(mission); 
     table.remove(DarkPatronDB.ActiveMissions, index); 
@@ -2679,9 +2805,19 @@ local function CheckCombatProgress(event, ...)
         local msg = ...
         for i = #DarkPatronDB.ActiveMissions, 1, -1 do
             local mission = DarkPatronDB.ActiveMissions[i]
-            if mission.trigger == "LOOT_JUNK" and msg:match("|cff9d9d9d.-|r") then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
-            elseif mission.trigger == "LOOT_ANY" and (msg:find("You receive loot") or msg:find("You create")) then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
-            elseif mission.trigger == "FETCH_ITEM" and mission.targetName then if msg:find(mission.targetName) then local qty = msg:match("x(%d+)%."); mission.current = mission.current + (qty and tonumber(qty) or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
+            if mission.trigger == "LOOT_JUNK" and msg:match("|cff9d9d9d.-|r") then 
+                mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+            elseif mission.trigger == "LOOT_ANY" and (msg:find("You receive loot") or msg:find("You create")) then 
+                mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+            elseif mission.trigger == "FETCH_ITEM" and mission.targetName then 
+                if msg:find(mission.targetName) then 
+                    local qty = msg:match("x(%d+)%."); mission.current = mission.current + (qty and tonumber(qty) or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
+                end 
+            elseif mission.trigger == "FISH_CATCH" and msg:find("You receive loot") then
+                if IsEquippedItemType("Fishing Poles") then
+                    local qty = msg:match("x(%d+)%."); mission.current = mission.current + (qty and tonumber(qty) or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                end
+            end
         end
     end
 
@@ -2707,35 +2843,53 @@ local function CheckCombatProgress(event, ...)
         end
         
         if sourceGUID == UnitGUID("player") then
+            -- RESTRICTION AUDIT: Monitor for Abstinence Failures
+            local dealtShadow = false
+            if spellSchool and bit.band(spellSchool, 32) > 0 then dealtShadow = true end
+            local dealtAnyDamage = (subEvent == "SWING_DAMAGE" or subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE" or subEvent == "SPELL_PERIODIC_DAMAGE")
+            
             for i = #DarkPatronDB.ActiveMissions, 1, -1 do
                 local mission = DarkPatronDB.ActiveMissions[i]
+                
+                -- Hard Resets (Must be processed before increments!)
+                if mission.trigger == "PURITY_KILL" and dealtShadow then
+                    if mission.current > 0 then mission.current = 0; UpdateTracker() end
+                end
+                if mission.trigger == "PACIFIST_SURVIVAL" and dealtAnyDamage then
+                    if mission.current > 0 then mission.current = 0; UpdateTracker() end
+                end
+
+                -- Normal Increments
                 if mission.trigger == "INTERRUPT_SPELL" and subEvent == "SPELL_INTERRUPT" then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
                 if mission.trigger == "GATHER_NODE" and subEvent == "SPELL_CAST_SUCCESS" then local sName = select(13, CombatLogGetCurrentEventInfo()); if sName == "Mining" or sName == "Herb Gathering" or sName == "Skinning" then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
                 if mission.trigger == "SPELL_CAST_SUCCESS" and subEvent == "SPELL_CAST_SUCCESS" then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
                 if mission.trigger == "AURA_APPLIED" and subEvent == "SPELL_AURA_APPLIED" then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
                 if mission.trigger == "CONSUME_FOOD" and subEvent == "SPELL_AURA_APPLIED" then if spellName == "Food" or spellName == "Drink" then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
                 if mission.trigger == "SWING_DAMAGE" and subEvent == "SWING_DAMAGE" then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
+                if mission.trigger == "ENCHANTED_SWING" and subEvent == "SWING_DAMAGE" then 
+                    if HasTempWeaponEnchant() then 
+                        mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
+                    end 
+                end
                 if mission.trigger == "UNARMED_DAMAGE" and subEvent == "SWING_DAMAGE" then local mainHandLink = GetInventoryItemLink("player", 16); if not mainHandLink then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
                 if mission.trigger == "NAKED_COMBAT" and subEvent == "SWING_DAMAGE" then local chestLink = GetInventoryItemLink("player", 5); if not chestLink then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
                 if mission.trigger == "ANY_DAMAGE" and (subEvent == "SWING_DAMAGE" or subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE") then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
                 if mission.trigger == "PHYSICAL_DAMAGE" then if subEvent == "SWING_DAMAGE" or (spellSchool == 1 and (subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE")) then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
-                if mission.trigger == "SPELL_DAMAGE" and (subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE") then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
+                
+                -- Spell School Bitwise Magic
+                if mission.trigger == "FROST_DAMAGE" and (subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE" or subEvent == "SPELL_PERIODIC_DAMAGE") then if spellSchool and bit.band(spellSchool, 16) > 0 then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
+                if mission.trigger == "SHADOW_DAMAGE" and (subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE" or subEvent == "SPELL_PERIODIC_DAMAGE") then if spellSchool and bit.band(spellSchool, 32) > 0 then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
+                if mission.trigger == "NATURE_DAMAGE" and (subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE" or subEvent == "SPELL_PERIODIC_DAMAGE") then if spellSchool and bit.band(spellSchool, 8) > 0 then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
+                if mission.trigger == "ARCANE_DAMAGE" and (subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE" or subEvent == "SPELL_PERIODIC_DAMAGE") then if spellSchool and bit.band(spellSchool, 64) > 0 then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
                 if mission.trigger == "HOLY_FIRE_DAMAGE" and (subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE") then if spellSchool == 2 or spellSchool == 4 or spellSchool == 6 or spellSchool == 36 then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
+                
                 if mission.trigger == "CRIT_STRIKE" and subEvent:find("DAMAGE") then
                     local isCrit = false
-                    if subEvent == "SWING_DAMAGE" then 
-                        isCrit = select(18, CombatLogGetCurrentEventInfo())
-                    else 
-                        isCrit = select(21, CombatLogGetCurrentEventInfo())
-                    end
-                    if isCrit then 
-                        mission.current = mission.current + 1
-                        if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
-                    end
+                    if subEvent == "SWING_DAMAGE" then isCrit = select(18, CombatLogGetCurrentEventInfo()) else isCrit = select(21, CombatLogGetCurrentEventInfo()) end
+                    if isCrit then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
                 end
             end
 
-            -- PARTY_KILL evaluated strictly once per kill event outside the inner loop
             if subEvent == "PARTY_KILL" then
                 local destNpcID = 0
                 if destGUID then
@@ -2745,35 +2899,42 @@ local function CheckCombatProgress(event, ...)
 
                 for i = #DarkPatronDB.ActiveMissions, 1, -1 do
                     local mission = DarkPatronDB.ActiveMissions[i]
-                    
-                    if mission.trigger == "PARTY_KILL" then 
-                        mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
-                        
+                    if mission.trigger == "PARTY_KILL" then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                    elseif mission.trigger == "PURITY_KILL" then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                    elseif mission.trigger == "FLAWLESS_KILL" then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                    elseif mission.trigger == "WELL_FED_KILL" then 
+                        if IsWellFed() then 
+                            mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
+                        end
                     elseif mission.trigger == "DUNGEON_BOSS_KILL" then 
                         local _, _, _, _, _, _, _, currentInstanceID = GetInstanceInfo()
-                        if DungeonBossDB[destNpcID] and currentInstanceID == mission.targetInstanceID then 
-                            mission.current = mission.current + 1
-                            if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
-                        end
-                        
+                        if DungeonBossDB[destNpcID] and currentInstanceID == mission.targetInstanceID then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
                     elseif mission.trigger == "HONORABLE_KILL" then 
                         local isPlayer = bit.band(destFlags, COMBATLOG_OBJECT_CONTROL_PLAYER) > 0
                         if isPlayer then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
-                        
                     elseif mission.trigger == "RISKY_KILL" then 
                         local hpMax = UnitHealthMax("player")
                         if hpMax and hpMax > 0 and (UnitHealth("player") / hpMax) <= 0.33 then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
-                        
-                    elseif mission.trigger == "SPECIFIC_KILL" and destName == mission.targetName then 
-                        mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
+                    elseif mission.trigger == "SPECIFIC_KILL" and destName == mission.targetName then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
                     end
                 end
             end
         end
 
         if destGUID == UnitGUID("player") then
+            -- RESTRICTION AUDIT: Flawless Kills (Took damage?)
+            local tookDamage = (subEvent == "SWING_DAMAGE" or subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE" or subEvent == "SPELL_PERIODIC_DAMAGE" or subEvent == "ENVIRONMENTAL_DAMAGE")
+            
             for i = #DarkPatronDB.ActiveMissions, 1, -1 do
                 local mission = DarkPatronDB.ActiveMissions[i]
+                
+                -- Hard Resets
+                if mission.trigger == "FLAWLESS_KILL" and tookDamage and amount and amount > 0 then
+                    if mission.current > 0 then mission.current = 0; UpdateTracker() end
+                end
+                
+                -- Normal Increments
+                if mission.trigger == "PACIFIST_SURVIVAL" and tookDamage and amount and amount > 0 then mission.current = mission.current + amount; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
                 if mission.trigger == "FALLING_DAMAGE" and subEvent == "ENVIRONMENTAL_DAMAGE" and amount > 0 then mission.current = mission.current + amount; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
                 if mission.trigger == "DAMAGE_TAKEN" and subEvent:find("DAMAGE") then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
                 if mission.trigger == "HEALING_RECEIVED" and (subEvent == "SPELL_HEAL" or subEvent == "SPELL_PERIODIC_HEAL") then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
@@ -2781,11 +2942,8 @@ local function CheckCombatProgress(event, ...)
                     if mission.trigger == "DEFENSE_ROLL" and (missType == "PARRY" or missType == "DODGE" or missType == "BLOCK") then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
                     elseif mission.trigger == "DODGE_ATTACK" and missType == "DODGE" then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
                 end
-                
                 if (subEvent == "SWING_DAMAGE" or subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE") then
-                    if mission.trigger == "DEFENSE_ROLL" and (blockedAmount and blockedAmount > 0) then
-                        mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
-                    end
+                    if mission.trigger == "DEFENSE_ROLL" and (blockedAmount and blockedAmount > 0) then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
                 end
             end
         end
@@ -2832,7 +2990,17 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
 			
             C_Timer.NewTicker(1, function()
                 if DarkPatronDB then
-                    if not DarkPatronDB.LastBoardRefresh or DarkPatronDB.LastBoardRefresh == 0 then DarkPatronDB.LastBoardRefresh = time() end
+                    -- 1. Live Streak Expiration Check
+                    if (DarkPatronDB.CurrentStreak or 0) > 0 and (DarkPatronDB.LastPactTime or 0) > 0 then
+                        if (time() - DarkPatronDB.LastPactTime) >= 1200 then
+                            DarkPatronDB.CurrentStreak = 0
+                            PatronWhisper("Your momentum wanes. The streak has crumbled to dust.")
+                            UpdateTracker()
+                        end
+                    end
+
+                    -- 2. Board Refresh Check
+                    if not DarkPatronDB.LastBoardRefresh or DarkPatronDB.LastBoardRefresh == 0 then DarkPatronDB.LastBoardRefresh = time() endDarkPatronDB.LastBoardRefresh = time() end
                     
                     local timeSinceRefresh = time() - DarkPatronDB.LastBoardRefresh
                     local timeUntilNext = 3600 - timeSinceRefresh -- 1 Hour Timer
@@ -2908,6 +3076,36 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
                     end
                 end
             end)
+            
+        elseif addonName == "Blizzard_TalentUI" then
+            local tBlocker = CreateFrame("Frame", "DarkPatronTalentBlocker", PlayerTalentFrame)
+            tBlocker:SetPoint("TOPLEFT", PlayerTalentFrame, "TOPLEFT", 15, -65)
+            tBlocker:SetPoint("BOTTOMRIGHT", PlayerTalentFrame, "BOTTOMRIGHT", -40, 75)
+            tBlocker:EnableMouse(true)
+            tBlocker:SetFrameLevel(PlayerTalentFrame:GetFrameLevel() + 10)
+            tBlocker:SetScript("OnMouseUp", function() print("|cffff0000[Dark Patron]: The Veil blocks your hand. Purchase a Grant of Knowledge.|r") end)
+            
+            local function EvalTalentBlocker()
+                if GetSpentTalentPoints() >= (DarkPatronDB.MaxTalentsAllowed or 0) then tBlocker:Show() else tBlocker:Hide() end
+            end
+            PlayerTalentFrame:HookScript("OnShow", EvalTalentBlocker)
+            DP_Core:HookScript("OnEvent", function(self, evt, ...) if evt == "CHARACTER_POINTS_CHANGED" and PlayerTalentFrame and PlayerTalentFrame:IsShown() then EvalTalentBlocker() end end)
+        end
+
+    elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
+        local unitTarget, castGUID, spellID = ...
+        if unitTarget == "player" then
+            local spellName = GetSpellInfo(spellID)
+            if not spellName then return end
+
+            for i = #DarkPatronDB.ActiveMissions, 1, -1 do
+                local mission = DarkPatronDB.ActiveMissions[i]
+                if mission.trigger == "CRAFT_ITEM" and mission.targetName then
+                    if spellName == mission.targetName then
+                        mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                    end
+                end
+            end
         end
     elseif event == "BANKFRAME_OPENED" then
         if not DarkPatronDB.HasBank then CloseBankFrame(); print("|cffff0000[Dark Patron]: The Veil seals the vault! You must purchase The Hoarder's Key from the Bazaar to access the Bank.|r") end
@@ -2941,9 +3139,12 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
     elseif event == "PLAYER_REGEN_ENABLED" then if isViolating then CheckViolations() end
     elseif event == "PLAYER_UPDATE_RESTING" or event == "ZONE_CHANGED_NEW_AREA" or event == "ZONE_CHANGED" then if Ledger and Ledger:IsShown() then Ledger:GetScript("OnShow")(Ledger) end
 	elseif event == "COMPANION_UPDATE" then
-        if IsMounted() and DarkPatronDB and not DarkPatronDB.HasJourneymanCavalry then
-            Dismount()
-            print("|cffff0000[Dark Patron]: The Veil forbids riding without a Journeyman's Cavalry Sanction! You are forcefully dismounted.|r")
+        if IsMounted() and DarkPatronDB then
+            if IsFlying() and not DarkPatronDB.HasExpertCavalry then
+                Dismount(); print("|cffff0000[Dark Patron]: The Veil forbids flying without an Expert's Cavalry Sanction! You are forcefully dismounted.|r")
+            elseif not DarkPatronDB.HasJourneymanCavalry then
+                Dismount(); print("|cffff0000[Dark Patron]: The Veil forbids riding without a Journeyman's Cavalry Sanction! You are forcefully dismounted.|r")
+            end
         end
     elseif event == "COMBAT_LOG_EVENT_UNFILTERED" or event == "CHAT_MSG_LOOT" or event == "CHAT_MSG_MONEY" or event == "QUEST_TURNED_IN" or event == "QUEST_LOG_UPDATE" or event == "CHAT_MSG_SYSTEM" then
         CheckCombatProgress(event, ...)
