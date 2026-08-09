@@ -651,15 +651,12 @@ local function GenerateProceduralContract(allowRare)
     local timeLimit = 0
     if isTimed then timeLimit = math.random(15, 30) * 60 end
     
-    -- CHOKED FAVOR PAYOUT
     local favorPayout = template.baseFavor + math.floor(pLvl / 20)
     
     local rarity = "Standard"
     local baseRewardText = ""
 	
-	-- If Mak'gora is selected, give it a 5% chance to actually remain, otherwise re-roll
 	if template.trigger == "MAKGORA_WIN" and math.random(1, 100) > 5 then
-		-- Re-roll to a standard action template so Mak'gora stays extremely rare
 		template = validActions[math.random(#validActions)]
 	end
     
@@ -670,9 +667,17 @@ local function GenerateProceduralContract(allowRare)
         if allowRare and not isTimed and math.random(1, 100) <= 5 then
             rarity = "Rare"
             favorPayout = favorPayout + 1
-            finalGoal = math.ceil(finalGoal * 1.25) -- Bump difficulty slightly for a rare spawn
+            finalGoal = math.ceil(finalGoal * 1.25) -- Difficulty bumps here
         end
         baseRewardText = string.format("Reward: +%d Dark Favor", favorPayout)
+    end
+
+    local finalDesc = template.baseDesc
+    local formattedGoal = DP_FormatNumber(finalGoal)
+    if targetNameStr ~= "" then 
+        finalDesc = string.format(template.baseDesc, formattedGoal, targetNameStr) 
+    else 
+        finalDesc = string.format(template.baseDesc, formattedGoal) 
     end
     
     return { id = GetDeterministicHash(template.trigger, finalGoal, "ID"), title = baseTitle, desc = finalDesc, rarity = rarity, rewardText = baseRewardText, favor = favorPayout, goal = finalGoal, current = 0, trigger = template.trigger, targetName = targetNameStr, zone = targetZoneStr, isPvP = template.isPvP or false, isLegendary = template.isLegendary or false, isTimed = isTimed, timeLimit = timeLimit, expiresAt = 0 }
