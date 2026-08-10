@@ -166,6 +166,66 @@ local LegendaryBlacklist = {
     ["Surestrike Goggles v3.0"] = true, ["Powerheal 9000 Lens"] = true, ["Tankatronic Goggles"] = true
 }
 
+local function GetCraftingDetails(name, prof)
+    local verb = "Craft"
+    local baseGoal = 3 -- Fallback default for unknown items
+    local lowerName = name:lower()
+    
+    -- 1. Determine Action Verb
+    if lowerName:find("^enchant ") or lowerName:find(" oil$") or lowerName:find(" wand$") then
+        verb = "Cast"
+    elseif lowerName:find("^transmute") then
+        verb = "Transmute"
+    elseif lowerName:find("^smelt") or lowerName:find(" bar$") then
+        verb = "Smelt"
+    elseif prof == "Cooking" then
+        verb = "Cook"
+    elseif prof == "Alchemy" then
+        verb = "Brew"
+    elseif prof == "Blacksmithing" then
+        if lowerName:find("stone") or lowerName:find("spike") or lowerName:find("weightstone") then
+            verb = "Craft"
+        else
+            verb = "Forge"
+        end
+    elseif prof == "Leatherworking" then
+        verb = "Stitch"
+    elseif prof == "Tailoring" then
+        verb = "Weave"
+    elseif prof == "Engineering" then
+        verb = "Tinker"
+    elseif prof == "First Aid" then
+        verb = "Bind"
+    elseif prof == "Jewelcrafting" then
+        if lowerName:find("ring") or lowerName:find("pendant") or lowerName:find("necklace") or lowerName:find("amulet") or lowerName:find("choker") then
+            verb = "Craft"
+        else
+            verb = "Cut"
+        end
+    end
+
+    -- 2. Determine Reasonability / Quantity Goal
+    -- Check if item is expensive gear, armor, weapons, bags, or tools (Low Volume: 1-2)
+    local isGear = lowerName:find("helm") or lowerName:find("crown") or lowerName:find("coif") or lowerName:find("headband") or lowerName:find("turban")
+        or lowerName:find("monocle") or lowerName:find("goggles") or lowerName:find("specs") or lowerName:find("hood") or lowerName:find("mask") or lowerName:find("cap") or lowerName:find("hat")
+        or lowerName:find("breastplate") or lowerName:find("vest") or lowerName:find("armor") or lowerName:find("hauberk") or lowerName:find("tunic") or lowerName:find("robe") or lowerName:find("cuirass") or lowerName:find("chest") or lowerName:find("suit") or lowerName:find("jacket")
+        or lowerName:find("shoulders") or lowerName:find("mantle") or lowerName:find("pauldrons") or lowerName:find("cloak") or lowerName:find("cape")
+        or lowerName:find("bracers") or lowerName:find("bindings") or lowerName:find("wristguards") or lowerName:find("gloves") or lowerName:find("gauntlets") or lowerName:find("handwraps")
+        or lowerName:find("belt") or lowerName:find("girdle") or lowerName:find("cinch") or lowerName:find("pants") or lowerName:find("leggings") or lowerName:find("legguards") or lowerName:find("pantaloons") or lowerName:find("boots") or lowerName:find("slippers") or lowerName:find("shoes") or lowerName:find("tread")
+        or lowerName:find("sword") or lowerName:find("axe") or lowerName:find("mace") or lowerName:find("dagger") or lowerName:find("rapier") or lowerName:find("blade") or lowerName:find("hammer") or lowerName:find("shatterer") or lowerName:find("shiv") or lowerName:find("shortsword") or lowerName:find("broadsword") or lowerName:find("greatsword") or lowerName:find("claymore") or lowerName:find("poniard") or lowerName:find("maul") or lowerName:find("pulverizer") or lowerName:find("spear") or lowerName:find("rifle") or lowerName:find("shotgun") or lowerName:find("musket") or lowerName:find("boomstick") or lowerName:find("blunderbuss") or lowerName:find("wand") or lowerName:find("staff") or lowerName:find("shield") or lowerName:find("buckler")
+        or lowerName:find("ring") or lowerName:find("band") or lowerName:find("signet") or lowerName:find("loop") or lowerName:find("necklace") or lowerName:find("pendant") or lowerName:find("amulet") or lowerName:find("choker") or lowerName:find("figurine")
+        or lowerName:find("bag") or lowerName:find("pack") or lowerName:find("pouch") or lowerName:find("satchel")
+        or lowerName:find("rod") or lowerName:find("key") or lowerName:find("spyglass") or lowerName:find("robot") or lowerName:find("controller") or lowerName:find("yeti") or lowerName:find("toad") or lowerName:find("dragonling")
+
+    if isGear then
+        baseGoal = 2
+    else
+        baseGoal = 10
+    end
+
+    return verb, baseGoal
+end
+
 -- Build the final crafting roster and feed it to the main addon
 for i = 1, #Names do
     if Names[i] and Reqs[i] then
@@ -186,15 +246,19 @@ for i = 1, #Names do
         local minSkill = tonumber(skillLevelStr) or 1
         local maxSkill = minSkill + 50
         
+        -- Automatically classify the action verb and reasonable goal quantity
+        local verb, baseGoal = GetCraftingDetails(Names[i], baseProf)
+        
         local itemData = {
             name = Names[i],
             minSkill = minSkill,
             maxSkill = maxSkill,
             reqProf = baseProf,
-            reqSpec = reqSpec
+            reqSpec = reqSpec,
+            verb = verb,
+            baseGoal = baseGoal
         }
 
-        -- Divert items found on the Blacklist to the Legendary DB
         if LegendaryBlacklist[Names[i]] then
             table.insert(DP.LegendaryCraftingDB, itemData)
         else

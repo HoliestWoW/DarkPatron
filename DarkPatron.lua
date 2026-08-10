@@ -603,6 +603,7 @@ local function GenerateProceduralContract(allowRare)
     local targetNameStr = ""
     local targetZoneStr = ""
     local expectedMinSkill = math.max(1, (pLvl * 5) - 50)
+	local customDesc = nil
     
     if template.trigger == "FETCH_ITEM" then
         local validItems = {}
@@ -631,8 +632,15 @@ local function GenerateProceduralContract(allowRare)
             local pSkill = GetPlayerSkillLevel(item.reqProf)
             if pSkill >= expectedMinSkill and pSkill >= item.minSkill and pSkill <= (item.maxSkill + 50) then table.insert(validItems, item) end
         end
-        local chosenItem = (#validItems > 0) and validItems[math.random(#validItems)] or CraftingDB[1]
+        local chosenItem = (#validItems > 0) and validItems[math.random(#validItems)] or DP.CraftingDB[1]
         targetNameStr = chosenItem.name
+        
+        local itemBaseGoal = chosenItem.baseGoal or 3
+        local countScale = 1 + (pLvl * 0.04)
+        finalGoal = math.floor(itemBaseGoal * countScale)
+        
+        local verb = chosenItem.verb or "Craft"
+        customDesc = verb .. " %s %s."
         
     elseif template.trigger == "DUNGEON_CLEAR" then
         local validDungeons = {}; local pFaction = UnitFactionGroup("player")
@@ -644,9 +652,13 @@ local function GenerateProceduralContract(allowRare)
         targetZoneStr = chosenDung.name
     end
     
-    local finalDesc = template.baseDesc
+    local baseFormat = customDesc or template.baseDesc
     local formattedGoal = DP_FormatNumber(finalGoal)
-    if targetNameStr ~= "" then finalDesc = string.format(template.baseDesc, formattedGoal, targetNameStr) else finalDesc = string.format(template.baseDesc, formattedGoal) end
+    if targetNameStr ~= "" then 
+        finalDesc = string.format(baseFormat, formattedGoal, targetNameStr) 
+    else 
+        finalDesc = string.format(baseFormat, formattedGoal) 
+    end
     
     local isTimed = (math.random(1, 100) <= 15) and not template.isLegendary
     local timeLimit = 0
@@ -1429,12 +1441,12 @@ for _, child in ipairs({Ledger:GetChildren()}) do
 end
 
 local customCloseBtn = CreateFrame("Button", nil, Ledger, "UIPanelCloseButton")
-customCloseBtn:SetPoint("TOPRIGHT", Ledger, "TOPRIGHT", 3, 3)
+customCloseBtn:SetPoint("TOPRIGHT", Ledger, "TOPRIGHT", 3, 0)
 customCloseBtn:SetScript("OnClick", function() Ledger:Hide() end)
 
 local HelpBtn = CreateFrame("Button", nil, Ledger, "UIPanelButtonTemplate")
-HelpBtn:SetSize(24, 24)
-HelpBtn:SetPoint("RIGHT", customCloseBtn, "LEFT", -4, 0)
+HelpBtn:SetSize(20, 18)
+HelpBtn:SetPoint("RIGHT", customCloseBtn, "LEFT", -10, 1)
 HelpBtn:SetText("?")
 HelpBtn:SetScript("OnClick", function() currentStep = 1; UpdateTutorialPage(); WelcomeModal:Show() end)
 
@@ -1567,46 +1579,90 @@ btnNextPage:SetScript("OnClick", function() if currentChroniclePage < #chronicle
 -- =====================================================================
 -- CUSTOM UI PARTICLE ENGINE
 -- =====================================================================
-local ParticleFrame = CreateFrame("Frame", nil, BoardContainer)
-ParticleFrame:SetAllPoints(); ParticleFrame:SetFrameLevel(100) 
+local ParticleEngine = CreateFrame("Frame") -- Invisible engine to run the OnUpdate
 local activeParticles, availableParticles, glowingCards = {}, {}, {}
 
+-- Instead of raw textures on a top-level frame, we create individual Frames
 for i = 1, 60 do 
-    local tex = ParticleFrame:CreateTexture(nil, "OVERLAY")
-    tex:SetTexture("Interface\\CastingBar\\UI-CastingBar-Spark"); tex:SetBlendMode("ADD"); tex:SetAlpha(0); tex:Hide()
-    tex.isActive = false; tex.velX = 0; tex.velY = 0; tex.life = 0
-    table.insert(availableParticles, tex)
+    local p = CreateFrame("Frame", nil, UIParent)
+    local tex = p:CreateTexture(nil, "ARTWORK") -- Draw below text (OVERLAY) but above backgrounds
+    tex:SetAllPoints()
+    tex:SetTexture("Interface\\CastingBar\\UI-CastingBar-Spark")
+    tex:SetBlendMode("ADD")
+    
+    p.tex = tex
+    p:Hide()
+    p.isActive = false; p.velX = 0; p.velY = 0; p.life = 0
+    table.insert(availableParticles, p)
 end
 
 local function SpawnCardParticle(card, rarity)
     local p = table.remove(availableParticles)
     if not p then return end
+    
+    p:SetParent(card)
+    p:SetFrameLevel(card:GetFrameLevel())
+    card:SetClipsChildren(true) 
+    
     local size = math.random(10, 18); p:SetSize(size, size); local width = card:GetWidth()
     p.posX = math.random(-(width / 2.5), (width / 2.5)); p.posY = (size / 2) + 4; p.baseAlpha = 0.8
-    p.velX = (math.random() - 0.5) * 15; p.velY = math.random(15, 35)
-    if rarity == "Rare" then p:SetVertexColor(0.2, 0.8, 1.0) elseif rarity == "Elite" then p:SetVertexColor(0.6, 0.2, 1.0) else p:SetVertexColor(1.0, 0.6, 0.0) end 
+    
+    -- KILLED THE TORNADO: Almost zero horizontal shooting speed
+    p.velX = (math.random() - 0.5) * 4 
+    -- Slower, steadier upward drift like an ember
+    p.velY = math.random(15, 25) 
+    
+    -- Give each ember a unique, gentle sway
+    p.wiggleOffset = math.random() * 100
+    p.wiggleSpeed = math.random(2, 4)
+    
+    if rarity == "Rare" then p.tex:SetVertexColor(0.2, 0.8, 1.0) 
+    elseif rarity == "Elite" then p.tex:SetVertexColor(0.6, 0.2, 1.0) 
+    else p.tex:SetVertexColor(1.0, 0.6, 0.0) end 
+    
     p.life = math.random(1000, 2000) / 1000; p.parentCard = card; p.isActive = true; p:SetAlpha(p.baseAlpha)
     p:ClearAllPoints(); p:SetPoint("CENTER", card, "BOTTOM", p.posX, p.posY); p:Show()
+    
     table.insert(activeParticles, p)
 end
 
-ParticleFrame:SetScript("OnUpdate", function(self, elapsed)
+local particleTimer = 0
+ParticleEngine:SetScript("OnUpdate", function(self, elapsed)
     if #glowingCards == 0 and #activeParticles == 0 then
         return
     end
+    
     local now = GetTime()
-    if #glowingCards > 0 and math.random() < 0.3 then
+    particleTimer = particleTimer + elapsed
+    
+    -- Steady, decoupled spawn rate
+    if #glowingCards > 0 and particleTimer >= 0.08 then
+        particleTimer = 0
         local targetCard = glowingCards[math.random(#glowingCards)]
-        if targetCard:IsShown() and targetCard.missionRarity then SpawnCardParticle(targetCard, targetCard.missionRarity) end
+        if targetCard:IsShown() and targetCard.missionRarity then 
+            SpawnCardParticle(targetCard, targetCard.missionRarity) 
+        end
     end
+
     for i = #activeParticles, 1, -1 do
         local p = activeParticles[i]
-        p.posX = p.posX + (p.velX * elapsed); p.posY = p.posY + (p.velY * elapsed); p.life = p.life - elapsed
+        
+        p.posX = p.posX + (p.velX * elapsed)
+        p.posY = p.posY + (p.velY * elapsed)
+        p.life = p.life - elapsed
+        
         if p.life <= 0 or not p.parentCard:IsShown() then
-            p.isActive = false; p:Hide(); table.remove(activeParticles, i); table.insert(availableParticles, p)
+            p.isActive = false; p:Hide(); 
+            p:SetParent(UIParent); p:ClearAllPoints(); 
+            table.remove(activeParticles, i); table.insert(availableParticles, p)
         else
+            -- Apply a smooth, gentle horizontal sway simulating rising heat
+            local sway = math.sin(now * p.wiggleSpeed + p.wiggleOffset) * 10 * elapsed
+            p.posX = p.posX + sway
+            
             local curA = math.min(p.life, 1.0) * p.baseAlpha
-            p.posX = p.posX + (math.sin(now * 2 + p.velY) * 0.5); p:SetAlpha(curA); p:SetPoint("CENTER", p.parentCard, "BOTTOM", p.posX, p.posY)
+            p:SetAlpha(curA)
+            p:SetPoint("CENTER", p.parentCard, "BOTTOM", p.posX, p.posY)
         end
     end
 end)
