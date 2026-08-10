@@ -35,6 +35,7 @@ local defaults = {
     TotalPactsAccepted = 0,
     TotalPactsCompleted = 0,
     CurrentStreak = 0,
+	PeakStreak = 0,
     LastPactTime = 0,
     LastBoardRefresh = 0,
     HasInitializedAwakening = false, 
@@ -67,6 +68,7 @@ DP_Core:RegisterEvent("PLAYER_LOGOUT")
 DP_Core:RegisterEvent("COMPANION_UPDATE")
 DP_Core:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 DP_Core:RegisterEvent("PLAYER_DEAD")
+DP_Core:RegisterEvent("PLAYER_LEVEL_UP")
 
 local devMode = false
 
@@ -871,6 +873,21 @@ local function GenerateAllRaidContracts(pLvl)
     return validContracts
 end
 
+local function CheckLevelMilestoneDungeons()
+    if not DarkPatronDB then return end
+    local pLvl = UnitLevel("player") or 1
+    
+    -- Generate all valid dungeons for the new level
+    local newStack = GenerateAllDungeonContracts(pLvl)
+    if newStack and #newStack > 0 then
+        DarkPatronDB.DungeonBounties = newStack
+        if ShowPatronToast then 
+            ShowPatronToast("New Dungeon Pacts have opened in your Ledger!") 
+        end
+        PlaySound(8831) -- Quest unlock sound
+    end
+end
+
 -- =====================================================================
 -- 3. THE PATRON'S VEIL & VOID DEBT AUDIT LOGIC
 -- =====================================================================
@@ -894,13 +911,15 @@ local function CheckViolations()
     local violationReason = ""
 
     for slot = 1, 19 do
-        local itemLink = GetInventoryItemLink("player", slot)
-        if itemLink then
-            local _, _, itemQuality = GetItemInfo(itemLink)
-            if itemQuality and itemQuality > DarkPatronDB.MaxGearQuality then
-                isViolating = true
-                violationReason = "FORBIDDEN ARTIFACT (Unequip illegal gear)"
-                if not InCombatLockdown() then PickupInventoryItem(slot) PutItemInBackpack() end
+        if slot ~= 4 and slot ~= 19 then
+            local itemLink = GetInventoryItemLink("player", slot)
+            if itemLink then
+                local _, _, itemQuality = GetItemInfo(itemLink)
+                if itemQuality and itemQuality > DarkPatronDB.MaxGearQuality then
+                    isViolating = true
+                    violationReason = "FORBIDDEN ARTIFACT (Unequip illegal gear)"
+                    if not InCombatLockdown() then PickupInventoryItem(slot) PutItemInBackpack() end
+                end
             end
         end
     end
@@ -1491,43 +1510,93 @@ local function GenerateChroniclePages()
     local pName = UnitName("player") or "The Wanderer"
     local pClass = UnitClass("player") or "mortal"
     local pLvl = UnitLevel("player") or 1
-	
 	local completedCount = DarkPatronDB.TotalPactsCompleted or 0
+    local peakStreak = DarkPatronDB.PeakStreak or 0
     
     if not DarkPatronDB or (DarkPatronDB.TotalPactsAccepted or 0) == 0 then
-        return {"The parchment is cold and blank. Your story has yet to be written in blood.\n\nFulfill your first pact to begin."}
+        if DarkPatronDB.IsDead and DarkPatronDB.DeathEpitaph then
+            return { DarkPatronDB.DeathEpitaph }
+        else
+            return {"The parchment is cold and blank. Your story has yet to be written in blood.\n\nFulfill your first pact to begin."}
+        end
     end
 
     local archetype, archeDesc = GetPlayerArchetype()
-    local p1 = string.format("The Ledger recognizes %s, a %s of the %s archetype. They navigated the Veil by %s.\n\n", pName, string.lower(pClass), archetype, archeDesc)
-	p1 = p1 .. string.format("To date, they have successfully sealed and fulfilled %d pacts, surviving trials that would break lesser souls.\n\n", completedCount)
+    
+    -- Randomized, grounded opening hooks reflecting life and conflict in Azeroth/Outland
+    local introHooks = {
+        string.format("The Ledger bears the mark of %s, a %s who walked the dark path as a %s, %s.", pName, string.lower(pClass), archetype, archeDesc),
+        string.format("In the shadow of the faction war and the ruins of a broken world, the Dark Patron's eye fell upon %s. As a %s operating under the %s discipline, they carved their path by %s.", pName, string.lower(pClass), archetype, archeDesc),
+        string.format("The ink of the Veil records the chronicle of %s. A %s shaped by the %s creed, they survived the board across the contested lands by %s.", pName, string.lower(pClass), archetype, archeDesc)
+    }
+    
+    local hookIdx = (GetDeterministicHash(pName, pLvl, "ChronicleIntro") % #introHooks) + 1
+    local p1 = introHooks[hookIdx] + "\n\n"
+    
+    p1 = p1 .. string.format("To date, they have bound their soul to %d fulfilled pacts, weathering trials that broke lesser mercenaries across Azeroth and Outland.\n\n", completedCount)
 
-    if DarkPatronDB.FirstEliteKilled then p1 = p1 .. string.format("The Patron's eye was truly drawn to them on the day they executed %s. That first major kill proved they were not merely prey, but a predator in their own right.\n\n", DarkPatronDB.FirstEliteKilled) else p1 = p1 .. "Though they have survived the board, they have yet to claim the head of a true Elite. The Patron watches, waiting for them to prove their mettle.\n\n" end
+    if DarkPatronDB.FirstEliteKilled then 
+        p1 = p1 .. string.format("Travelers still whisper of the day they tracked down and executed %s. That first major kill proved they were a true predator, not mere prey.\n\n", DarkPatronDB.FirstEliteKilled) 
+    else 
+        p1 = p1 .. "Though they have navigated the board's standard contracts, the head of a true regional Elite has yet to grace their ledger. The Patron watches, waiting for them to draw blood.\n\n" 
+    end
     table.insert(pages, p1)
 
+    -- Page 2: Momentum, Industry, and Risks
     local p2 = ""
-    local fails = DarkPatronDB.FailedPactsCount or 0
-    if fails == 0 and DarkPatronDB.TotalPactsAccepted > 10 then p2 = p2 .. "Remarkably, their resolve has never fractured. Every pact signed has been fulfilled. The Veil honors their flawless execution.\n\n"
-    elseif fails > 0 and fails < 5 then p2 = p2 .. string.format("But the path to power is paved with broken promises. They failed the Patron %d times, paying the blood tax to survive their own hubris.\n\n", fails)
-    elseif fails >= 5 then p2 = p2 .. string.format("Their ambition often outpaced their ability. With %d broken pacts, they bled Dark Favor time and time again, narrowly avoiding the Patron's ultimate wrath.\n\n", fails) end
+    if peakStreak >= 5 then
+        p2 = p2 .. string.format("At the height of their dark momentum, they forged an unbroken chain of %d rapid executions, turning the battlefield into a ruthless harvest.\n\n", peakStreak)
+    end
 
-    if DarkPatronDB.MaxGearQuality >= 3 then p2 = p2 .. "Unwilling to die in peasant's cloth, they secured the rights to formidable armaments from the Bazaar, weaponizing their greed.\n\n" end
-    if DarkPatronDB.HasBank or DarkPatronDB.HasAuction then p2 = p2 .. "By securing the Hoarder's Key and the Merchant's Writ, they rooted their influence deep into the economies of Azeroth.\n\n" end
+    local fails = DarkPatronDB.FailedPactsCount or 0
+    if fails == 0 and DarkPatronDB.TotalPactsAccepted > 5 then 
+        p2 = p2 .. "Their discipline was absolute; not a single broken promise or abandoned pact stained their record. The Veil honors such cold perfection.\n\n"
+    elseif fails > 0 and fails < 5 then 
+        p2 = p2 .. string.format("Ambition has its costs on the road. They turned away from the Patron's demands %d times, paying the heavy blood tax of Favor to survive their own miscalculations.\n\n", fails)
+    elseif fails >= 5 then 
+        p2 = p2 .. string.format("Their overreach constantly threatened to undo them. With %d fractured pacts, they bled Favor endlessly just to keep the Patron's wrath at bay.\n\n", fails) 
+    end
+
+    -- Industrial / Gathering check
+    local gatheringCount = (DarkPatronDB.ContractTypesCompleted and DarkPatronDB.ContractTypesCompleted["GATHER_NODE"] or 0)
+    local craftCount = (DarkPatronDB.ContractTypesCompleted and DarkPatronDB.ContractTypesCompleted["CRAFT_ITEM"] or 0)
+    if gatheringCount > 3 or craftCount > 3 then
+        p2 = p2 .. "Unlike those who rely entirely on raw violence, they rooted their survival in the material economy—striking mineral veins, harvesting wild herbs, and forging goods to feed the Ledger's demands.\n\n"
+    end
+
+    if DarkPatronDB.MaxGearQuality >= 3 then 
+        p2 = p2 .. "Refusing to perish in common rags, they secured the rights to rare armaments from the Bazaar, turning material wealth into lethal protection.\n\n" 
+    end
     if p2 ~= "" then table.insert(pages, p2) end
 
+    -- Page 3: Endgame and the Ascent
     local p3 = ""
     if DarkPatronDB.ApexSigils > 0 or DarkPatronDB.HasCapstone then
-        p3 = p3 .. "Having touched the Void, they claimed their first Apex Sigils. "
-        if DarkPatronDB.HasCapstone then p3 = p3 .. "With this forbidden currency, they awakened their ultimate potential, unlocking powers the Light meant to keep hidden.\n\n" else p3 = p3 .. "They hoard this legendary currency, biding their time for a masterstroke.\n\n" end
+        p3 = p3 .. "Having pushed past mortal boundaries, they wrenched forbidden Apex Sigils from the toughest raids of the realm. "
+        if DarkPatronDB.HasCapstone then 
+            p3 = p3 .. "With this power, they shattered their class limits, unlocking ultimate talents designed to overwhelm any challenger.\n\n" 
+        else 
+            p3 = p3 .. "They hoard this rare currency tightly, biding their time for absolute mastery.\n\n" 
+        end
     end
     
-    if DarkPatronDB.HasJourneymanCavalry and not DarkPatronDB.HasMasterCavalry then p3 = p3 .. "When the distances grew vast, they traded Dark Favor for the loyalty of a phantom steed, riding where others walked.\n\n"
-    elseif DarkPatronDB.HasMasterCavalry then p3 = p3 .. "Now, they ride upon a Master's mount, a blur of shadow and steel across the continents. The story of " .. pName .. " is etched into the very fabric of the Dark Patron's ledger." end
-    
-    if pLvl == 60 and not DarkPatronDB.HasMasterCavalry then p3 = p3 .. "Standing at the precipice of mortal limits, the Champion of the Veil gazes into the Abyss. Though they have reached the summit, true power still eludes them. The Patron waits for them to claim their final Sanctions.\n\n" end
+    if DarkPatronDB.HasMasterCavalry then 
+        p3 = p3 .. "Now, they ride like a storm across the continents atop an Epic mount, a terrifying blur of shadow and steel.\n\n" 
+    elseif DarkPatronDB.HasJourneymanCavalry then 
+        p3 = p3 .. "Backed by the Patron's sanction, they traded Favor for the loyalty of a swift mount, crossing contested territory where others walked on foot.\n\n" 
+    end
+
+    local maxLvl = (WOW_PROJECT_ID == WOW_PROJECT_BURNING_CRUSADE_CLASSIC) and 70 or 60
+    if pLvl >= maxLvl and not DarkPatronDB.HasMasterCavalry then 
+        p3 = p3 .. "Standing at the absolute precipice of max-level power, they survey a scarred world. Though the summit is reached, true transcendence still requires the final Sanctum sanctions.\n\n" 
+    end
+
     if p3 ~= "" then table.insert(pages, p3) end
 
-    if DarkPatronDB.IsDead and DarkPatronDB.DeathEpitaph then table.insert(pages, DarkPatronDB.DeathEpitaph) end
+    if DarkPatronDB.IsDead and DarkPatronDB.DeathEpitaph then 
+        table.insert(pages, DarkPatronDB.DeathEpitaph) 
+    end
+    
     return #pages > 0 and pages or {"The parchment is cold and blank."}
 end
 
@@ -2771,6 +2840,7 @@ RefillMissionPool = function(isRetry)
                     if ShowPatronToast then ShowPatronToast("A Legendary Raid Stack has appeared in the Ledger!") end
                 end
             end
+		--[[
         elseif math.random(1, 100) <= 25 then
             if GenerateAllDungeonContracts then
                 local newStack = GenerateAllDungeonContracts(pLvl)
@@ -2779,6 +2849,7 @@ RefillMissionPool = function(isRetry)
                     if ShowPatronToast then ShowPatronToast("A new Elite Dungeon Pact stack has appeared in the Ledger!") end
                 end
             end
+			]]--
         end
     end
 
@@ -2804,6 +2875,7 @@ local function FulfillMission(index, mission)
     end
 
     DarkPatronDB.CurrentStreak = currentStreak + 1
+    DarkPatronDB.PeakStreak = math.max(DarkPatronDB.PeakStreak or 0, DarkPatronDB.CurrentStreak)
     DarkPatronDB.LastPactTime = currentTime
     
     local streakBonus = 0
@@ -2811,10 +2883,10 @@ local function FulfillMission(index, mission)
         streakBonus = 2; PlaySound(565853); 
         
         local streakWhispers = {
-            "Five pacts executed flawlessly. The anima of your victims ripples through the In-Between, mortal. A highly profitable streak... take your cut.",
-            "Five souls harvested in rapid succession. A magnificent tithe. Revendreth drinks your offerings, mortal. Claim your Favor and continue the slaughter.",
-            "Five threads severed. Every life you end feeds the Maw. Claim your miserable Favor, mortal, until the day your own soul is dragged into the darkness.",
-            "Five lives ended. The machinery of Death groans under the weight of the souls you send across the veil. Take your reward, anomaly. The Shadowlands hunger."
+            "Five pacts executed flawlessly. The blood of your victims stains the soil of Azeroth, mortal. A highly profitable streak... take your cut.",
+            "Five souls harvested in rapid succession. A magnificent tithe to the Dark Patron. The shadows drink your offerings. Claim your Favor and continue the slaughter.",
+            "Five threads severed. Every life you end deepens your dark covenant. Claim your miserable Favor, mortal, until the day your own blood is claimed.",
+            "Five lives ended. The veil grows thinner with every soul you send across it. Take your reward, anomaly. The darkness hungers."
         }
         
         PatronWhisper(streakWhispers[math.random(#streakWhispers)]) 
@@ -3298,6 +3370,13 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
         end
 
         UpdateTracker(); DP_EvaluateBazaarAlert()
+	elseif event == "PLAYER_LEVEL_UP" then
+        local newLevel = ...
+        print(string.format("|cffffd700[Dark Patron]: You have reached level %d. The Veil reveals new dungeon trials.|r", newLevel))
+        CheckLevelMilestoneDungeons()
+        if Ledger and Ledger:IsShown() then 
+            Ledger:GetScript("OnShow")(Ledger) 
+        end
     elseif event == "PLAYER_EQUIPMENT_CHANGED" or event == "CHARACTER_POINTS_CHANGED" then CheckViolations()
     elseif event == "PLAYER_REGEN_ENABLED" then if isViolating then CheckViolations() end
     elseif event == "PLAYER_UPDATE_RESTING" or event == "ZONE_CHANGED_NEW_AREA" or event == "ZONE_CHANGED" then if Ledger and Ledger:IsShown() then Ledger:GetScript("OnShow")(Ledger) end
