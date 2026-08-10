@@ -66,6 +66,7 @@ DP_Core:RegisterEvent("MAIL_SHOW")
 DP_Core:RegisterEvent("PLAYER_LOGOUT")
 DP_Core:RegisterEvent("COMPANION_UPDATE")
 DP_Core:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+DP_Core:RegisterEvent("PLAYER_DEAD")
 
 local devMode = false
 
@@ -3145,7 +3146,9 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
                     end
 
                     -- 2. Board Refresh Check
-                    if not DarkPatronDB.LastBoardRefresh or DarkPatronDB.LastBoardRefresh == 0 then DarkPatronDB.LastBoardRefresh = time() endDarkPatronDB.LastBoardRefresh = time() end
+                    if not DarkPatronDB.LastBoardRefresh or DarkPatronDB.LastBoardRefresh == 0 then 
+						DarkPatronDB.LastBoardRefresh = time() 
+					end
                     
                     local timeSinceRefresh = time() - DarkPatronDB.LastBoardRefresh
                     local timeUntilNext = 3600 - timeSinceRefresh -- 1 Hour Timer
@@ -3290,7 +3293,7 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
                 Dismount(); print("|cffff0000[Dark Patron]: The Veil forbids riding without a Journeyman's Cavalry Sanction! You are forcefully dismounted.|r")
             end
         end
-    elseif event == "COMBAT_LOG_EVENT_UNFILTERED" or event == "CHAT_MSG_LOOT" or event == "CHAT_MSG_MONEY" or event == "QUEST_TURNED_IN" or event == "QUEST_LOG_UPDATE" or event == "CHAT_MSG_SYSTEM" then
+    elseif event == "COMBAT_LOG_EVENT_UNFILTERED" or event == "CHAT_MSG_LOOT" or event == "CHAT_MSG_MONEY" or event == "QUEST_TURNED_IN" or event == "QUEST_LOG_UPDATE" or event == "CHAT_MSG_SYSTEM" or event == "PLAYER_DEAD" then
         CheckCombatProgress(event, ...)
     elseif event == "PLAYER_LOGOUT" then
         if DarkPatronDB and DarkPatronDB.ActiveMissions then
