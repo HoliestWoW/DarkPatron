@@ -3052,8 +3052,7 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
                             if type(m.expiresAt) == "number" and time() >= m.expiresAt and not m.failed then
                                 m.failed = true; m.trigger = "FAILED"; DarkPatronDB.CurrentStreak = 0; DarkPatronDB.FailedPactsCount = (DarkPatronDB.FailedPactsCount or 0) + 1
 								PatronWhisper("Time is a luxury you do not possess. Another pact wasted.")
-                                print(string.format("|cffff0000[Dark Patron]: The timer has expired for '%s'! (-1 Favor). You must discard the failed pact to free your slot.|r", m.title))
-                                DarkPatronDB.DarkFavor = DarkPatronDB.DarkFavor - 1
+                                print(string.format("|cffff0000[Dark Patron]: The timer has expired for '%s'! You must pay the toll to discard this failed pact and free your slot.|r", m.title))
                                 if Ledger and Ledger:IsShown() then Ledger:GetScript("OnShow")(Ledger) end
                             end
                             needsUpdate = true
