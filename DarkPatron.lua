@@ -626,7 +626,7 @@ local function GenerateProceduralContract(allowRare)
         
     elseif template.trigger == "CRAFT_ITEM" then
         local validItems = {}
-        for _, item in ipairs(CraftingDB) do
+        for _, item in ipairs(DP.CraftingDB) do
             local pSkill = GetPlayerSkillLevel(item.reqProf)
             if pSkill >= expectedMinSkill and pSkill >= item.minSkill and pSkill <= (item.maxSkill + 50) then table.insert(validItems, item) end
         end
@@ -2092,8 +2092,17 @@ local function CreateStoreCard(isApexTab, index, titleText, descText, costText, 
     return card
 end
 
-local function GetTalentCost() 
-    return math.floor(20 + ((DarkPatronDB.MaxTalentsAllowed or 0) * 15)) 
+local function GetTalentCost()
+    local p = DarkPatronDB.MaxTalentsAllowed or 0
+    if p < 10 then
+        return 10 -- First 10 points: Cheap early game unlocks
+    elseif p < 25 then
+        return 20 -- Points 11-25: Mid-tree progression
+    elseif p < 40 then
+        return 35 -- Points 26-40: Deep-tree commitments
+    else
+        return 50 -- Points 41+: Capped ceiling for ultimate builds
+    end
 end
 
 local function UpdateBazaarUI()
