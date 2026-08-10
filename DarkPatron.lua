@@ -893,17 +893,27 @@ end
 -- =====================================================================
 local Veil = CreateFrame("Frame", "PatronsVeil", UIParent)
 Veil:SetAllPoints(UIParent)
-Veil:SetFrameStrata("TOOLTIP")
+-- Pushed to the background so your Bags and Character Sheet stay full-color
+Veil:SetFrameStrata("BACKGROUND") 
+Veil:SetFrameLevel(0)
 Veil:Hide()
+
 local veilBg = Veil:CreateTexture(nil, "BACKGROUND")
 veilBg:SetAllPoints(Veil)
 veilBg:SetTexture("Interface\\Buttons\\WHITE8X8")
 veilBg:SetVertexColor(0.02, 0.02, 0.05, 0.92)
+
 local veilText = Veil:CreateFontString(nil, "OVERLAY", "QuestFont_Enormous")
-veilText:SetPoint("CENTER", 0, 50)
+veilText:SetPoint("CENTER", 0, 150)
 veilText:SetTextColor(1, 0, 0)
 
 local isViolating = false
+local equippedTracker = {} -- Tracks your legal gear for perfect auto-swapping
+
+-- Safe API fallbacks to prevent nil errors across different WoW client versions
+local GetBagSlots = C_Container and C_Container.GetContainerNumSlots or GetContainerNumSlots
+local GetBagItemID = C_Container and C_Container.GetContainerItemID or GetContainerItemID
+local PickupBagItem = C_Container and C_Container.PickupContainerItem or PickupContainerItem
 
 local function CheckViolations()
     if not DarkPatronDB then return end
@@ -915,16 +925,76 @@ local function CheckViolations()
             local itemLink = GetInventoryItemLink("player", slot)
             if itemLink then
                 local _, _, itemQuality = GetItemInfo(itemLink)
+                
                 if itemQuality and itemQuality > DarkPatronDB.MaxGearQuality then
                     isViolating = true
                     violationReason = "FORBIDDEN ARTIFACT (Unequip illegal gear)"
-                    if not InCombatLockdown() then PickupInventoryItem(slot) PutItemInBackpack() end
+                    
+                    if not InCombatLockdown() then 
+                        -- 1. Rip the forbidden item off the character
+                        PickupInventoryItem(slot) 
+                        
+                        if CursorHasItem() then
+                            local itemPlaced = false
+                            
+                            -- Phase 1: If we replaced a legal item, find it and swap it back immediately
+                            if equippedTracker[slot] then
+                                -- Extract the itemID safely from the tracked item link
+                                local oldItemID = tonumber(equippedTracker[slot]:match("item:(%d+)"))
+                                
+                                if oldItemID then
+                                    for bag = 0, 4 do
+                                        local numSlots = GetBagSlots(bag)
+                                        if numSlots and numSlots > 0 then
+                                            for bagSlot = 1, numSlots do
+                                                if GetBagItemID(bag, bagSlot) == oldItemID then
+                                                    PickupBagItem(bag, bagSlot) -- Drops illegal item, picks up old item
+                                                    PickupInventoryItem(slot)   -- Equips the old item back!
+                                                    itemPlaced = true
+                                                    break
+                                                end
+                                            end
+                                        end
+                                        if itemPlaced then break end
+                                    end
+                                end
+                            end
+                            
+                            -- Phase 2: If the slot was previously empty (no item to swap back), drop it in an empty bag slot
+                            if not itemPlaced then
+                                for bag = 0, 4 do
+                                    local numSlots = GetBagSlots(bag)
+                                    if numSlots and numSlots > 0 then
+                                        for bagSlot = 1, numSlots do
+                                            if not GetBagItemID(bag, bagSlot) then
+                                                PickupBagItem(bag, bagSlot) 
+                                                itemPlaced = true
+                                                break
+                                            end
+                                        end
+                                    end
+                                    if itemPlaced then break end
+                                end
+                            end
+                        end
+                    end
+                else
+                    -- The item is legal. Update our memory tracker.
+                    equippedTracker[slot] = itemLink
                 end
+            else
+                -- The slot is legally empty. Clear memory for this slot.
+                equippedTracker[slot] = nil
             end
         end
     end
 
-    if isViolating then Veil:Show() veilText:SetText(violationReason) else Veil:Hide() end
+    if isViolating then 
+        Veil:Show() 
+        veilText:SetText(violationReason) 
+    else 
+        Veil:Hide() 
+    end
 end
 
 -- =====================================================================
