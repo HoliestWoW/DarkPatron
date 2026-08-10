@@ -760,20 +760,29 @@ local function GenerateProceduralContract(allowRare)
         if allowRare and not isTimed and math.random(1, 100) <= 5 then
             rarity = "Rare"
             favorPayout = favorPayout + 1
-            finalGoal = math.ceil(finalGoal * 1.25) -- Difficulty bumps here
+            finalGoal = math.ceil(finalGoal * 1.25)
         end
         baseRewardText = string.format("Reward: +%d Dark Favor", favorPayout)
     end
-
-    local finalDesc = template.baseDesc
-    local formattedGoal = DP_FormatNumber(finalGoal)
-    if targetNameStr ~= "" then 
-        finalDesc = string.format(template.baseDesc, formattedGoal, targetNameStr) 
-    else 
-        finalDesc = string.format(template.baseDesc, formattedGoal) 
-    end
     
-    return { id = GetDeterministicHash(template.trigger, finalGoal, "ID"), title = baseTitle, desc = finalDesc, rarity = rarity, rewardText = baseRewardText, favor = favorPayout, goal = finalGoal, current = 0, trigger = template.trigger, targetName = targetNameStr, zone = targetZoneStr, isPvP = template.isPvP or false, isLegendary = template.isLegendary or false, isTimed = isTimed, timeLimit = timeLimit, expiresAt = 0 }
+    return { 
+        id = GetDeterministicHash(template.trigger, finalGoal, "ID"), 
+        title = baseTitle, 
+        desc = finalDesc, 
+        rarity = rarity, 
+        rewardText = baseRewardText, 
+        favor = favorPayout, 
+        goal = finalGoal, 
+        current = 0, 
+        trigger = template.trigger, 
+        targetName = targetNameStr, 
+        zone = targetZoneStr, 
+        isPvP = template.isPvP or false, 
+        isLegendary = template.isLegendary or false, 
+        isTimed = isTimed, 
+        timeLimit = timeLimit, 
+        expiresAt = 0 
+    }
 end
 
 local function GenerateAllDungeonContracts(pLvl)
@@ -2065,9 +2074,12 @@ apexBg:SetTexture("Interface\\DialogFrame\\UI-DialogBox-Background-Dark")
 -- Tint the actual texture deep crimson so it keeps the shading and grain
 apexBg:SetVertexColor(0.8, 0.1, 0.1, 0.85)
 
+local isTBC = (WOW_PROJECT_ID == WOW_PROJECT_BURNING_CRUSADE_CLASSIC)
+local maxLvl = isTBC and 70 or 60
+
 local apexHeader = ApexContainer:CreateFontString(nil, "OVERLAY", "GameFontNormalMed3")
 apexHeader:SetPoint("TOPLEFT", 20, -70)
-apexHeader:SetText("The Apex Sanctum (Level 60 Endgame & Conversion):")
+apexHeader:SetText(string.format("The Apex Sanctum (Level %d Endgame & Conversion):", maxLvl))
 apexHeader:SetTextColor(1, 0.2, 0.2)
 
 local ExchangeBox = CreateFrame("Frame", nil, ApexContainer, "BackdropTemplate")
