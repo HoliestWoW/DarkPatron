@@ -285,7 +285,8 @@ local ActionTemplates = {
     { trigger = "HOLY_FIRE_DAMAGE", baseDesc = "Deal %s Holy or Fire damage.", baseGoal = 250, baseFavor = 1, isStat = true, reqHolyFire = true, patterns = { "The [Adj] Zealot", "Purging [Noun]" } },
 
     -- Abstinence & Constraints (Hard Resets)
-    { trigger = "PURITY_KILL", baseDesc = "Strike the killing blow on %s targets without casting ANY Shadow magic. Fails on cast.", baseGoal = 10, baseFavor = 1, patterns = { "The Grimoire's Vow", "Rite of Purity" } },
+    { trigger = "PURITY_KILL", baseDesc = "Strike the killing blow on %s targets without casting ANY Shadow magic. Fails on cast.", baseGoal = 10, baseFavor = 1, reqShadow = true, patterns = { "The Grimoire's Vow", "Rite of Purity" } },
+	{ trigger = "PURITY_KILL_NATURE", baseDesc = "Strike the killing blow on %s targets without casting ANY Nature magic.", baseGoal = 10, baseFavor = 1, reqNature = true, patterns = { "The Earth's Vow", "Rite of Purity" } },
     { trigger = "FLAWLESS_KILL", baseDesc = "Strike the killing blow on %s targets without taking ANY damage. Fails on hit.", baseGoal = 5, baseFavor = 2, patterns = { "The [Adj] Ghost", "Flawless Execution" } },
     { trigger = "PACIFIST_SURVIVAL", baseDesc = "Survive taking %s damage without dealing ANY damage yourself. Fails on hit.", baseGoal = 150, baseFavor = 2, isStat = true, patterns = { "The [Adj] Pacifist", "Vow of Non-Violence" } },
 
@@ -2858,8 +2859,12 @@ local function CheckCombatProgress(event, ...)
         
         if sourceGUID == UnitGUID("player") then
             -- RESTRICTION AUDIT: Monitor for Abstinence Failures
+            local dealtNature = false
+            if spellSchool and bit.band(spellSchool, 8) > 0 then dealtNature = true end
+            
             local dealtShadow = false
             if spellSchool and bit.band(spellSchool, 32) > 0 then dealtShadow = true end
+            
             local dealtAnyDamage = (subEvent == "SWING_DAMAGE" or subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE" or subEvent == "SPELL_PERIODIC_DAMAGE")
             
             for i = #DarkPatronDB.ActiveMissions, 1, -1 do
@@ -2867,6 +2872,9 @@ local function CheckCombatProgress(event, ...)
                 
                 -- Hard Resets (Must be processed before increments!)
                 if mission.trigger == "PURITY_KILL" and dealtShadow then
+                    if mission.current > 0 then mission.current = 0; UpdateTracker() end
+                end
+                if mission.trigger == "PURITY_KILL_NATURE" and dealtNature then
                     if mission.current > 0 then mission.current = 0; UpdateTracker() end
                 end
                 if mission.trigger == "PACIFIST_SURVIVAL" and dealtAnyDamage then
