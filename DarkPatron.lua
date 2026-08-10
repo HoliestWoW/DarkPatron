@@ -1531,7 +1531,7 @@ local function GenerateChroniclePages()
     }
     
     local hookIdx = (GetDeterministicHash(pName, pLvl, "ChronicleIntro") % #introHooks) + 1
-    local p1 = introHooks[hookIdx] + "\n\n"
+    local p1 = introHooks[hookIdx] .. "\n\n"
     
     p1 = p1 .. string.format("To date, they have bound their soul to %d fulfilled pacts, weathering trials that broke lesser mercenaries across Azeroth and Outland.\n\n", completedCount)
 
@@ -2970,7 +2970,7 @@ local function CheckCombatProgress(event, ...)
         if isHardcoreActive and not DarkPatronDB.IsDead then
             DarkPatronDB.IsDead = true
             local pName = UnitName("player") or "The Wanderer"; local pLvl = UnitLevel("player") or 1; local zone = GetRealZoneText() or "an unforgiving land"; local subZone = GetSubZoneText(); local location = subZone ~= "" and (subZone .. ", " .. zone) or zone
-            local epitaph = string.format("But the Veil is an unforgiving master, and all debts are eventually collected.\n\nHere, the Chronicle ends.\n\nAt level %d, %s drew their final breath in %s. The Patron's protection faltered, and the mortal coil was severed. Their remaining pacts are void, their hoarded Favor is scattered to the shadows, and their name becomes but a whisper in the Void.\n\nRequiescat in pace.", pLvl, pName, location)
+            local epitaph = string.format("But the path of the mercenary is short, and all blood debts are eventually collected.\n\nHere, the Chronicle ends.\n\nAt level %d, %s drew their final breath in %s. The Patron's protection faltered, and the mortal coil was severed. Their remaining pacts are void, their hoarded Favor is lost to the dust, and their name becomes but a forgotten whisper across Azeroth.\n\nRequiescat in pace.", pLvl, pName, location)
             DarkPatronDB.DeathEpitaph = epitaph
         end
     end
@@ -3371,8 +3371,8 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
 
         UpdateTracker(); DP_EvaluateBazaarAlert()
 	elseif event == "PLAYER_LEVEL_UP" then
-        local newLevel = ...
-        print(string.format("|cffffd700[Dark Patron]: You have reached level %d. The Veil reveals new dungeon trials.|r", newLevel))
+        local currentLevel = UnitLevel("player") or 1
+        print(string.format("|cffffd700[Dark Patron]: You have reached level %d. The Veil reveals new dungeon trials.|r", currentLevel))
         CheckLevelMilestoneDungeons()
         if Ledger and Ledger:IsShown() then 
             Ledger:GetScript("OnShow")(Ledger) 
