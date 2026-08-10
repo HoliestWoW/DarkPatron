@@ -2879,7 +2879,11 @@ local function CheckCombatProgress(event, ...)
                 UpdateTracker() 
             end 
         end
-        if not DarkPatronDB.IsDead then
+        
+        -- Check if death is actually permanent (Official Hardcore, Addon Hardcore, or Self-Found)
+        local isHardcoreActive = (C_GameRules and C_GameRules.IsHardcoreActive and C_GameRules.IsHardcoreActive()) or IsSelfFound()
+        
+        if isHardcoreActive and not DarkPatronDB.IsDead then
             DarkPatronDB.IsDead = true
             local pName = UnitName("player") or "The Wanderer"; local pLvl = UnitLevel("player") or 1; local zone = GetRealZoneText() or "an unforgiving land"; local subZone = GetSubZoneText(); local location = subZone ~= "" and (subZone .. ", " .. zone) or zone
             local epitaph = string.format("But the Veil is an unforgiving master, and all debts are eventually collected.\n\nHere, the Chronicle ends.\n\nAt level %d, %s drew their final breath in %s. The Patron's protection faltered, and the mortal coil was severed. Their remaining pacts are void, their hoarded Favor is scattered to the shadows, and their name becomes but a whisper in the Void.\n\nRequiescat in pace.", pLvl, pName, location)
