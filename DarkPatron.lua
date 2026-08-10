@@ -262,7 +262,78 @@ local Adjectives = { "Bloody", "Iron", "Relentless", "Shadowy", "Sorrowful", "Ab
 local Nouns = { "Blood", "Iron", "Carnage", "Sorrow", "Malice", "Shadows", "Dominance", "Restitution", "the Abyss", "Ruin", "Despair", "Ashes", "Dust", "Gluttony", "Pride" }
 
 local ZoneLoadingScreens = {
-    ["The Deadmines"] = "LoadScreenDeadmines", ["Wailing Caverns"] = "LoadScreenWailingCaverns", ["Shadowfang Keep"] = "LoadScreenShadowFang", ["Blackfathom Deeps"] = "LoadScreenBlackfathom", ["Razorfen Kraul"] = "LoadScreenRazorfenKraul", ["Gnomeregan"] = "LoadScreenGnomeregan", ["Scarlet Monastery"] = "LoadScreenMonastery", ["Uldaman"] = "LoadScreenUldaman", ["Razorfen Downs"] = "LoadScreenRazorfenDowns", ["Zul'Farrak"] = "LoadScreenZulFarrak", ["Maraudon"] = "LoadScreenMaraudon", ["The Temple of Atal'Hakkar"] = "LoadScreenSunkenTemple", ["Blackrock Depths"] = "LoadScreenBlackrockDepths", ["Scholomance"] = "LoadScreenScholomance", ["Stratholme"] = "LoadScreenStratholme", ["Dire Maul"] = "LoadScreenDireMaul", ["Blackrock Spire"] = "LoadScreenBlackrockSpire", ["Ragefire Chasm"] = "LoadScreenOrc", ["The Stockade"] = "LoadScreenStormwind"
+    -- Classic Standalones
+    ["Ragefire Chasm"] = "LoadScreenRagefireChasm",
+    ["Wailing Caverns"] = "LoadScreenWailingCaverns",
+    ["The Deadmines"] = "LoadScreenDeadmines",
+    ["Shadowfang Keep"] = "LoadScreenShadowFangKeep",
+    ["The Stockade"] = "LoadScreenStormwindStockade",
+    ["Blackfathom Deeps"] = "LoadScreenBlackfathomDeeps",
+    ["Gnomeregan"] = "LoadScreenGnomeregan",
+    ["Razorfen Kraul"] = "LoadScreenRazorfenKraul",
+    ["Razorfen Downs"] = "LoadScreenRazorfenDowns",
+    ["Uldaman"] = "LoadScreenUldaman",
+    ["Zul'Farrak"] = "LoadScreenZulFarrak",
+    ["Maraudon"] = "LoadScreenMaraudon",
+    ["Temple of Atal'Hakkar"] = "LoadScreenSunkenTemple",
+    ["Blackrock Depths"] = "LoadScreenBlackrockDepths",
+    ["Scholomance"] = "LoadScreenScholomance",
+    
+    -- Scarlet Monastery Wings
+    ["Scarlet Monastery: Graveyard"] = "LoadScreenScarletMonastery2",
+    ["Scarlet Monastery: Library"] = "LoadScreenScarletMonastery2",
+    ["Scarlet Monastery: Armory"] = "LoadScreenScarletMonastery2",
+    ["Scarlet Monastery: Cathedral"] = "LoadScreenScarletMonastery2",
+    
+    -- Blackrock Spire Wings
+    ["Lower Blackrock Spire"] = "LoadScreenBlackrockSpire",
+    ["Upper Blackrock Spire"] = "LoadScreenBlackrockSpire",
+    
+    -- Stratholme Wings
+    ["Stratholme (Live)"] = "LoadScreenStrathome",
+    ["Stratholme (Undead)"] = "LoadScreenStrathome",
+    
+    -- Dire Maul Wings
+    ["Dire Maul (East)"] = "LoadScreenDireMaul",
+    ["Dire Maul (North)"] = "LoadScreenDireMaul",
+    ["Dire Maul (West)"] = "LoadScreenDireMaul",
+
+    -- TBC Dungeons
+    ["Hellfire Ramparts"] = "LOADSCREENHELLFIRECITADEL",
+    ["The Blood Furnace"] = "LOADSCREENHELLFIRECITADEL",
+    ["The Shattered Halls"] = "LOADSCREENHELLFIRECITADEL",
+    ["The Slave Pens"] = "LOADSCREENCOILFANG",
+    ["The Underbog"] = "LOADSCREENCOILFANG",
+    ["Mana-Tombs"] = "LOADSCREENAUCHINDOUN",
+    ["Auchenai Crypts"] = "LOADSCREENAUCHINDOUN",
+    ["Sethekk Halls"] = "LOADSCREENAUCHINDOUN",
+    ["Shadow Labyrinth"] = "LOADSCREENAUCHINDOUN",
+    ["Old Hillsbrad Foothills"] = "LOADSCREENCAVERNSTIME",
+    ["The Black Morass"] = "LOADSCREENCAVERNSTIME",
+    ["The Botanica"] = "LOADSCREENTEMPESTKEEP",
+    ["The Mechanar"] = "LOADSCREENTEMPESTKEEP",
+    ["The Arcatraz"] = "LOADSCREENTEMPESTKEEP",
+    ["Magisters' Terrace"] = "LoadScreenSunwell",
+	
+	-- Classic Raids
+    ["Zul'Gurub"] = "LoadScreenZulGurub",
+    ["Molten Core"] = "LoadScreenMoltenCore",
+    ["Onyxia's Lair"] = "LOADSCREENKALIMDOR",
+    ["Blackwing Lair"] = "LoadScreenBlackWingLair",
+    ["Ruins of Ahn'Qiraj"] = "LoadScreenAhnQiraj20man",
+    ["Ahn'Qiraj"] = "LoadScreenAhnQiraj40man",
+    ["Naxxramas"] = "LoadScreenNaxxramas",
+    
+    -- TBC Raids
+    ["Karazhan"] = "LoadScreenKarazhan",
+    ["Zul'Aman"] = "LoadScreenZulAman2",
+    ["Gruul's Lair"] = "LOADSCREENGRUULSLAIR",
+    ["Magtheridon's Lair"] = "LOADSCREENHELLFIRECITADELRAID",
+    ["Serpentshrine Cavern"] = "LOADSCREENCOILFANG",
+    ["Tempest Keep"] = "LOADSCREENTEMPESTKEEP",
+    ["Hyjal Summit"] = "LOADSCREENCAVERNSTIME",
+    ["Black Temple"] = "LOADSCREENBLACKTEMPLE",
+    ["Sunwell Plateau"] = "LoadScreenSunwell5Man"
 }
 
 local ActionTemplates = {
@@ -515,7 +586,12 @@ local function PlayerCanComplete(template, pLvl)
     
     if template.trigger == "DUNGEON_CLEAR" then
         local hasValidDung = false
-        for _, d in ipairs(DungeonDB) do if pLvl >= d.minLvl and (not d.faction or d.faction == pFaction) then hasValidDung = true break end end
+        for _, d in ipairs(DungeonDB) do 
+            if pLvl >= d.minLvl and pLvl <= d.maxLvl and (not d.faction or d.faction == pFaction) then 
+                hasValidDung = true 
+                break 
+            end 
+        end
         if not hasValidDung then return false end
     end
     
@@ -645,7 +721,10 @@ local function GenerateProceduralContract(allowRare)
     elseif template.trigger == "DUNGEON_CLEAR" then
         local validDungeons = {}; local pFaction = UnitFactionGroup("player")
         for _, dungeon in ipairs(DungeonDB) do
-            if pLvl >= dungeon.minLvl and (not dungeon.faction or dungeon.faction == pFaction) then table.insert(validDungeons, dungeon) end
+            -- FIX: Overlevel check added here too
+            if pLvl >= dungeon.minLvl and pLvl <= dungeon.maxLvl and (not dungeon.faction or dungeon.faction == pFaction) then 
+                table.insert(validDungeons, dungeon) 
+            end
         end
         local chosenDung = (#validDungeons > 0) and validDungeons[math.random(#validDungeons)] or DungeonDB[1]
         targetNameStr = chosenDung.name
@@ -700,20 +779,35 @@ local function GenerateAllDungeonContracts(pLvl)
     local validContracts = {}
     local pFaction = UnitFactionGroup("player")
     for _, dungeon in ipairs(DungeonDB) do
-        if pLvl >= dungeon.minLvl and (not dungeon.faction or dungeon.faction == pFaction) then 
+        -- FIX: Added pLvl <= dungeon.maxLvl to prevent low-level dungeon farming
+        if pLvl >= dungeon.minLvl and pLvl <= dungeon.maxLvl and (not dungeon.faction or dungeon.faction == pFaction) then 
             local bossGoal = dungeon.bossCount or 3
+            local sigilPayout = (bossGoal >= 8) and 2 or 1
+            local favorPayout = bossGoal * 5
+            local rewardStr = string.format("Reward: +%d Dark Sigil%s, +%d Favor", sigilPayout, sigilPayout > 1 and "s" or "", favorPayout)
+            
+            local dynamicDesc = ""
+            if bossGoal == 1 then
+                dynamicDesc = string.format("Slay the only boss inside %s.", dungeon.name)
+            elseif bossGoal == 2 then
+                dynamicDesc = string.format("Slay both bosses inside %s.", dungeon.name)
+            else
+                dynamicDesc = string.format("Slay all %d bosses inside %s.", bossGoal, dungeon.name)
+            end
+            
             table.insert(validContracts, { 
                 id = GetDeterministicHash("DUNGEON_CLEAR", bossGoal, dungeon.name .. GetTime()), 
                 title = "Purge of " .. dungeon.name, 
-                desc = string.format("Slay all %d bosses inside %s.", bossGoal, dungeon.name), 
+                desc = dynamicDesc, 
                 rarity = "Elite", 
-                rewardText = "Reward: +1 Dark Sigil", 
-                favor = 0, 
+                rewardText = rewardStr, 
+                favor = favorPayout, 
+                sigils = sigilPayout, 
                 goal = bossGoal, 
                 current = 0, 
                 trigger = "DUNGEON_BOSS_KILL", 
                 targetName = dungeon.name, 
-                targetInstanceID = dungeon.instanceID, -- The new hook
+                targetInstanceID = dungeon.instanceID, 
                 zone = dungeon.name, 
                 isPvP = false, 
                 isLegendary = false, 
@@ -733,23 +827,34 @@ local function GenerateAllRaidContracts(pLvl)
     
     for _, raid in ipairs(RaidDB) do
         if (not isTBC and raid.minLvl == 60) or (isTBC and raid.minLvl == 70) then
+            
+            -- Dynamic Grammar Check
+            local dynamicDesc = ""
+            if raid.bossGoal == 1 then
+                dynamicDesc = string.format("Slay the only boss inside %s.", raid.name)
+            elseif raid.bossGoal == 2 then
+                dynamicDesc = string.format("Slay both bosses inside %s.", raid.name)
+            else
+                dynamicDesc = string.format("Slay all %d raid bosses inside %s.", raid.bossGoal, raid.name)
+            end
+            
             table.insert(validContracts, { 
                 id = GetDeterministicHash("RAID_CLEAR", raid.bossGoal, raid.name .. GetTime()), 
                 title = "The Apex Hunt: " .. raid.name, 
-                desc = string.format("Slay %d raid bosses inside %s.", raid.bossGoal, raid.name), 
+                desc = dynamicDesc, 
                 rarity = "Rare Elite", 
                 rewardText = "Reward: +2 Apex Sigils, +50 Favor", 
                 favor = 50, 
                 goal = raid.bossGoal, 
                 current = 0, 
-                trigger = "DUNGEON_BOSS_KILL", -- Uses the unified boss kill trigger
+                trigger = "DUNGEON_BOSS_KILL", 
                 targetName = raid.name, 
-                targetInstanceID = raid.instanceID, -- Hooks the strict instance ID
+                targetInstanceID = raid.instanceID, 
                 zone = raid.name, 
                 isPvP = false, 
                 isLegendary = true, 
                 isTimed = true, 
-                timeLimit = 604800 -- 1 Week Timer
+                timeLimit = 604800 
             })
         end
     end
@@ -793,93 +898,6 @@ local function CheckViolations()
     if isViolating then Veil:Show() veilText:SetText(violationReason) else Veil:Hide() end
 end
 
-local UpdateTracker = function()
-    if not DarkPatronDB then Tracker:Hide() StreakFrame:Hide() return end
-    
-    local activeCount = (DarkPatronDB.ActiveMissions and #DarkPatronDB.ActiveMissions > 0) and #DarkPatronDB.ActiveMissions or 0
-    local streak = DarkPatronDB.CurrentStreak or 0
-    local lastTime = DarkPatronDB.LastPactTime or 0
-    local hasStreak = (streak > 0 and lastTime > 0)
-
-    if activeCount == 0 and not hasStreak then 
-        Tracker:Hide() 
-        StreakFrame:Hide()
-        return 0
-    end
-    
-    Tracker:Show()
-    local maxSlots = DarkPatronDB.MaxActiveSlots or 3
-    local currentY = -30
-    
-    DarkPatronDB.CollapsedPacts = DarkPatronDB.CollapsedPacts or {}
-
-    for i = 1, 4 do
-        if i <= maxSlots then
-            Tracker.RowButtons[i]:SetPoint("TOPLEFT", 15, currentY)
-            local m = DarkPatronDB.ActiveMissions[i]
-            if m then
-                local isCollapsed = DarkPatronDB.CollapsedPacts[i] or false
-                
-                if isCollapsed then
-                    Tracker.CollapseButtons[i]:SetNormalTexture("Interface\\Buttons\\UI-PlusButton-Up")
-                    Tracker.CollapseButtons[i]:SetPushedTexture("Interface\\Buttons\\UI-PlusButton-Down")
-                else
-                    Tracker.CollapseButtons[i]:SetNormalTexture("Interface\\Buttons\\UI-MinusButton-Up")
-                    Tracker.CollapseButtons[i]:SetPushedTexture("Interface\\Buttons\\UI-MinusButton-Down")
-                end
-                Tracker.CollapseButtons[i]:Show()
-
-                local rarityLabel = ""
-                if m.rarity == "Rare Elite" or m.rarity == "Boss" then rarityLabel = "["..m.rarity.."] " elseif m.rarity == "Elite" then rarityLabel = "[Elite] " elseif m.rarity == "Rare" then rarityLabel = "[Rare] " end
-                
-                local titleColor = "|cffffd700" -- Gold for titles
-                local descColor = "|cffffffff"  -- White for descriptions
-                local displayText = ""
-
-                if isCollapsed then
-                    displayText = string.format("%s%s%s|r", titleColor, rarityLabel, m.title)
-                else
-                    local progressText = (m.goal and m.goal > 1) and string.format("\nProgress: %d / %d", m.current or 0, m.goal) or ""
-                    local timeText = ""
-                    if m.isTimed and m.expiresAt then
-                        local remain = m.expiresAt - time()
-                        if remain > 0 then timeText = string.format("\n|cffaaaaaaTime Remaining: %02d:%02d|r", math.floor(remain / 60), remain % 60) else timeText = "\n|cffff0000FAILED|r" end
-                    end
-                    displayText = string.format("%s%s%s|r\n%s%s%s%s|r", titleColor, rarityLabel, m.title, descColor, m.desc, progressText, timeText)
-                end
-                
-                Tracker.Rows[i]:SetText(displayText)
-                local h = Tracker.Rows[i]:GetStringHeight()
-                Tracker.RowButtons[i]:SetHeight(h)
-
-                -- REMOVED Tracker.Rows[i]:SetTextColor(...) HERE SO INLINE HEX COLORS REMAIN ACTIVE
-                Tracker.RowButtons[i]:Show()
-                currentY = currentY - h - 12
-            else
-                Tracker.CollapseButtons[i]:Hide()
-                Tracker.Rows[i]:SetText(string.format("Slot %d: Empty", i))
-                Tracker.Rows[i]:SetTextColor(0.5, 0.5, 0.5)
-                local h = Tracker.Rows[i]:GetStringHeight()
-                Tracker.RowButtons[i]:SetHeight(h)
-                Tracker.RowButtons[i]:Show()
-                currentY = currentY - h - 12
-            end
-        else
-            Tracker.RowButtons[i]:Hide()
-        end
-    end
-
-    Tracker:SetHeight(math.abs(currentY) + 15)
-
-    if hasStreak then
-        StreakFrame:ClearAllPoints()
-        StreakFrame:SetPoint("TOP", Tracker, "BOTTOM", 0, -5)
-        StreakFrame:Show()
-    else
-        StreakFrame:Hide()
-    end
-end
-
 -- =====================================================================
 -- 4. ON-SCREEN TRACKER, MINIMAP ICON & DRAG GHOST
 -- =====================================================================
@@ -912,11 +930,22 @@ pulseAnimGroup:SetLooping("REPEAT")
 function DP_EvaluateBazaarAlert()
     if not DarkPatronDB then return end
     local shouldPulse = false
+    
+    -- Updated to match true Bazaar costs
+    if DarkPatronDB.MaxGearQuality == 1 and DarkPatronDB.DarkFavor >= 35 then shouldPulse = true end
+    if not DarkPatronDB.HasBank and DarkPatronDB.DarkFavor >= 40 then shouldPulse = true end
     if not DarkPatronDB.HasAlchemistGrace and DarkPatronDB.DarkFavor >= 35 then shouldPulse = true end
-    if DarkPatronDB.MaxGearQuality == 1 and DarkPatronDB.DarkFavor >= 18 then shouldPulse = true end
-    if not DarkPatronDB.HasBank and DarkPatronDB.DarkFavor >= 25 then shouldPulse = true end
     if DarkPatronDB.DungeonBounties and #DarkPatronDB.DungeonBounties > 0 then shouldPulse = true end
-    if shouldPulse then pulseGlow:Show() pulseAnimGroup:Play() else pulseGlow:Hide() pulseAnimGroup:Stop() end
+    
+    if shouldPulse then 
+        pulseGlow:Show() 
+        if not pulseAnimGroup:IsPlaying() then
+            pulseAnimGroup:Play() 
+        end
+    else 
+        pulseGlow:Hide() 
+        pulseAnimGroup:Stop() 
+    end
 end
 
 local border = MinimapBtn:CreateTexture(nil, "OVERLAY")
@@ -1127,149 +1156,11 @@ for i = 1, 4 do
     Tracker.CollapseButtons[i] = collapseBtn
 end
 
--- 4. Define UpdateTracker ONCE with permanent gold titles (|cffffd700) and no blanket text overrides
 UpdateTracker = function()
-    if not DarkPatronDB or not Tracker or not StreakFrame then return end
-    
-    local activeCount = (DarkPatronDB.ActiveMissions and #DarkPatronDB.ActiveMissions > 0) and #DarkPatronDB.ActiveMissions or 0
-    local streak = DarkPatronDB.CurrentStreak or 0
-    local lastTime = DarkPatronDB.LastPactTime or 0
-    local hasStreak = (streak > 0 and lastTime > 0)
-
-    if activeCount == 0 and not hasStreak then 
-        Tracker:Hide() 
-        StreakFrame:Hide()
-        return 0
-    end
-    
-    Tracker:Show()
-    local maxSlots = DarkPatronDB.MaxActiveSlots or 3
-    local currentY = -30
-    
-    DarkPatronDB.CollapsedPacts = DarkPatronDB.CollapsedPacts or {}
-
-    for i = 1, 4 do
-        if i <= maxSlots then
-            Tracker.RowButtons[i]:SetPoint("TOPLEFT", 15, currentY)
-            local m = DarkPatronDB.ActiveMissions[i]
-            if m then
-                local isCollapsed = DarkPatronDB.CollapsedPacts[i] or false
-                
-                if isCollapsed then
-                    Tracker.CollapseButtons[i]:SetNormalTexture("Interface\\Buttons\\UI-PlusButton-Up")
-                    Tracker.CollapseButtons[i]:SetPushedTexture("Interface\\Buttons\\UI-PlusButton-Down")
-                else
-                    Tracker.CollapseButtons[i]:SetNormalTexture("Interface\\Buttons\\UI-MinusButton-Up")
-                    Tracker.CollapseButtons[i]:SetPushedTexture("Interface\\Buttons\\UI-MinusButton-Down")
-                end
-                Tracker.CollapseButtons[i]:Show()
-
-                local rarityLabel = ""
-                if m.rarity == "Rare Elite" or m.rarity == "Boss" then rarityLabel = "["..m.rarity.."] " elseif m.rarity == "Elite" then rarityLabel = "[Elite] " elseif m.rarity == "Rare" then rarityLabel = "[Rare] " end
-                
-                local titleColor = "|cffffd700" -- Gold for titles
-                local descColor = "|cffffffff"  -- White for descriptions
-                local displayText = ""
-
-                if isCollapsed then
-                    displayText = string.format("%s%s%s|r", titleColor, rarityLabel, m.title)
-                else
-                    local progressText = (m.goal and m.goal > 1) and string.format("\nProgress: %d / %d", m.current or 0, m.goal) or ""
-                    local timeText = ""
-                    if m.isTimed and m.expiresAt then
-                        local remain = m.expiresAt - time()
-                        if remain > 0 then timeText = string.format("\n|cffaaaaaaTime Remaining: %02d:%02d|r", math.floor(remain / 60), remain % 60) else timeText = "\n|cffff0000FAILED|r" end
-                    end
-                    displayText = string.format("%s%s%s|r\n%s%s%s%s|r", titleColor, rarityLabel, m.title, descColor, m.desc, progressText, timeText)
-                end
-                
-                Tracker.Rows[i]:SetText(displayText)
-                local h = Tracker.Rows[i]:GetStringHeight()
-                Tracker.RowButtons[i]:SetHeight(h)
-
-                Tracker.RowButtons[i]:Show()
-                currentY = currentY - h - 12
-            else
-                Tracker.CollapseButtons[i]:Hide()
-                Tracker.Rows[i]:SetText(string.format("Slot %d: Empty", i))
-                Tracker.Rows[i]:SetTextColor(0.5, 0.5, 0.5)
-                local h = Tracker.Rows[i]:GetStringHeight()
-                Tracker.RowButtons[i]:SetHeight(h)
-                Tracker.RowButtons[i]:Show()
-                currentY = currentY - h - 12
-            end
-        else
-            Tracker.RowButtons[i]:Hide()
-        end
-    end
-
-    Tracker:SetHeight(math.abs(currentY) + 15)
-
-    if hasStreak then
-        StreakFrame:ClearAllPoints()
-        StreakFrame:SetPoint("TOP", Tracker, "BOTTOM", 0, -5)
-        StreakFrame:Show()
-    else
-        StreakFrame:Hide()
-    end
-end
-
--- 5. Unified Throttled Ticker for the Streak Wick & Timer
-C_Timer.NewTicker(0.25, function()
-    if not DarkPatronDB then return end
-    
-    local currentTime = time()
-    local lastTime = DarkPatronDB.LastPactTime or 0
-    local streak = DarkPatronDB.CurrentStreak or 0
-    
-    if streak == 0 or lastTime == 0 then
-        if StreakFrame:IsShown() then StreakFrame:Hide() end
-        return
-    end
-
-    local elapsed = currentTime - lastTime
-    local remaining = math.max(0, 1200 - elapsed)
-    
-    -- Instantly hide the frame when the wick burns out
-    if remaining <= 0 then
-        if StreakFrame:IsShown() then StreakFrame:Hide() end
-        return
-    end
-    
-    if not StreakFrame:IsShown() then StreakFrame:Show() end
-
-    local elapsed = currentTime - lastTime
-    local remaining = math.max(0, 1200 - elapsed)
-    
-    StreakBar:SetValue(remaining)
-    
-    local ratio = remaining / 1200
-    if ratio > 0.5 then
-        StreakBar:SetStatusBarColor(1, 0.82, 0) -- Gold
-    elseif ratio > 0.2 then
-        StreakBar:SetStatusBarColor(1, 0.5, 0)   -- Orange
-    else
-        StreakBar:SetStatusBarColor(0.8, 0.1, 0.1) -- Crimson Red
-    end
-    
-    local barWidth = StreakBar:GetWidth()
-    local fillWidth = barWidth * (remaining / 1200)
-    spark:ClearAllPoints()
-    spark:SetPoint("CENTER", StreakBar, "LEFT", fillWidth, 0)
-    
-    local mins = math.floor(remaining / 60)
-    local secs = remaining % 60
-    
-    if StreakFrame:GetWidth() < 120 then
-        StreakText:SetText(string.format("%d | %02d:%02d", streak, mins, secs))
-    else
-        StreakText:SetText(string.format("Streak: %d | Time: %02d:%02d", streak, mins, secs))
-    end
-end)
-
-local function UpdateTracker()
     if not DarkPatronDB then Tracker:Hide() StreakFrame:Hide() return end
     
+    if DP_EvaluateBazaarAlert then DP_EvaluateBazaarAlert() end
+    
     local activeCount = (DarkPatronDB.ActiveMissions and #DarkPatronDB.ActiveMissions > 0) and #DarkPatronDB.ActiveMissions or 0
     local streak = DarkPatronDB.CurrentStreak or 0
     local lastTime = DarkPatronDB.LastPactTime or 0
@@ -1294,7 +1185,6 @@ local function UpdateTracker()
             if m then
                 local isCollapsed = DarkPatronDB.CollapsedPacts[i] or false
                 
-                -- Update collapse icon texture (+ or -) like Questie
                 if isCollapsed then
                     Tracker.CollapseButtons[i]:SetNormalTexture("Interface\\Buttons\\UI-PlusButton-Up")
                     Tracker.CollapseButtons[i]:SetPushedTexture("Interface\\Buttons\\UI-PlusButton-Down")
@@ -1304,12 +1194,18 @@ local function UpdateTracker()
                 end
                 Tracker.CollapseButtons[i]:Show()
 
-                local rarityLabel = ""
-                if m.rarity == "Rare Elite" or m.rarity == "Boss" then rarityLabel = "["..m.rarity.."] " elseif m.rarity == "Elite" then rarityLabel = "[Elite] " elseif m.rarity == "Rare" then rarityLabel = "[Rare] " end
+                -- Apply Hex colors dynamically to the title based on rarity
+                local titleColor = "|cffffd700" -- Gold for Standard
+                if m.rarity == "Rare Elite" or m.rarity == "Boss" then titleColor = "|cffff8000"
+                elseif m.rarity == "Elite" then titleColor = "|cffa335ee"
+                elseif m.rarity == "Rare" then titleColor = "|cff0070dd"
+                end
                 
+                local descColor = "|cffffffff" -- White for desc
+
                 local displayText = ""
                 if isCollapsed then
-                    displayText = string.format("%s%s", rarityLabel, m.title)
+                    displayText = string.format("%s%s|r", titleColor, m.title)
                 else
                     local progressText = (m.goal and m.goal > 1) and string.format("\nProgress: %d / %d", m.current or 0, m.goal) or ""
                     local timeText = ""
@@ -1317,14 +1213,15 @@ local function UpdateTracker()
                         local remain = m.expiresAt - time()
                         if remain > 0 then timeText = string.format("\n|cffaaaaaaTime Remaining: %02d:%02d|r", math.floor(remain / 60), remain % 60) else timeText = "\n|cffff0000FAILED|r" end
                     end
-                    displayText = string.format("%s%s\n%s%s%s", rarityLabel, m.title, m.desc, progressText, timeText)
+                    displayText = string.format("%s%s|r\n%s%s%s%s|r", titleColor, m.title, descColor, m.desc, progressText, timeText)
                 end
                 
                 Tracker.Rows[i]:SetText(displayText)
                 local h = Tracker.Rows[i]:GetStringHeight()
                 Tracker.RowButtons[i]:SetHeight(h)
 
-                if m.rarity == "Rare Elite" or m.rarity == "Boss" then Tracker.Rows[i]:SetTextColor(1, 0.5, 0) elseif m.rarity == "Elite" then Tracker.Rows[i]:SetTextColor(0.64, 0.21, 0.93) elseif m.rarity == "Rare" then Tracker.Rows[i]:SetTextColor(0, 0.44, 0.87) else Tracker.Rows[i]:SetTextColor(1, 1, 1) end
+                -- Force standard base color so inline colors do the work
+                Tracker.Rows[i]:SetTextColor(1, 1, 1) 
                 Tracker.RowButtons[i]:Show()
                 currentY = currentY - h - 12
             else
@@ -1396,18 +1293,85 @@ C_Timer.NewTicker(0.25, function()
 end)
 
 local DragGhost = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
-DragGhost:SetSize(180, 45)
 DragGhost:SetFrameStrata("TOOLTIP")
 DragGhost:Hide()
 DragGhost:SetBackdrop({ bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", tile = true, tileSize = 16, edgeSize = 16, insets = { left = 4, right = 4, top = 4, bottom = 4 }})
-DragGhost.title = DragGhost:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-DragGhost.title:SetPoint("CENTER")
+DragGhost:SetAlpha(0.85) -- Slight transparency for the ghosting effect
 
-local function StartDragging(sourceType, index, titleText)
-    DragGhost.sourceType = sourceType; DragGhost.sourceIndex = index; DragGhost.title:SetText(titleText); DragGhost:Show()
-    DragGhost:SetScript("OnUpdate", function(self) local x, y = GetCursorPosition(); local s = self:GetEffectiveScale(); self:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x/s, y/s) end)
+DragGhost.bgImage = DragGhost:CreateTexture(nil, "BORDER")
+DragGhost.bgImage:SetPoint("TOPLEFT", 4, -4)
+DragGhost.bgImage:SetPoint("BOTTOMRIGHT", -4, 4)
+
+DragGhost.title = DragGhost:CreateFontString(nil, "OVERLAY")
+DragGhost.desc = DragGhost:CreateFontString(nil, "OVERLAY")
+DragGhost.reward = DragGhost:CreateFontString(nil, "OVERLAY")
+
+local function StartDragging(sourceType, index, sourceFrame)
+    DragGhost.sourceType = sourceType
+    DragGhost.sourceIndex = index
+    
+    -- Clone Dimensions
+    DragGhost:SetSize(sourceFrame:GetSize())
+    
+    -- Clone Frame Colors
+    local br, bg, bb, ba = sourceFrame:GetBackdropBorderColor()
+    DragGhost:SetBackdropBorderColor(br, bg, bb, ba)
+    local cr, cg, cb, ca = sourceFrame:GetBackdropColor()
+    DragGhost:SetBackdropColor(cr, cg, cb, ca)
+
+    -- Clone Background Art
+    if sourceFrame.bgImage and sourceFrame.bgImage:IsShown() then
+        DragGhost.bgImage:SetTexture(sourceFrame.bgImage:GetTexture())
+        DragGhost.bgImage:SetTexCoord(sourceFrame.bgImage:GetTexCoord())
+        local vr, vg, vb, va = sourceFrame.bgImage:GetVertexColor()
+        DragGhost.bgImage:SetVertexColor(vr, vg, vb, va)
+        DragGhost.bgImage:Show()
+    else
+        DragGhost.bgImage:Hide()
+    end
+
+    -- Clone Title
+    DragGhost.title:SetFontObject(sourceFrame.title:GetFontObject())
+    DragGhost.title:SetText(sourceFrame.title:GetText())
+    local tr, tg, tb, ta = sourceFrame.title:GetTextColor()
+    DragGhost.title:SetTextColor(tr, tg, tb, ta)
+    DragGhost.title:SetWidth(sourceFrame.title:GetWidth())
+    DragGhost.title:SetWordWrap(true)
+    DragGhost.title:ClearAllPoints()
+    DragGhost.title:SetPoint("TOP", DragGhost, "TOP", 0, -12)
+
+    -- Clone Description
+    DragGhost.desc:SetFontObject(sourceFrame.desc:GetFontObject())
+    DragGhost.desc:SetText(sourceFrame.desc:GetText())
+    local dr, dg, db, da = sourceFrame.desc:GetTextColor()
+    DragGhost.desc:SetTextColor(dr, dg, db, da)
+    DragGhost.desc:SetSize(sourceFrame.desc:GetSize())
+    DragGhost.desc:SetJustifyH(sourceFrame.desc:GetJustifyH())
+    DragGhost.desc:SetJustifyV(sourceFrame.desc:GetJustifyV())
+    DragGhost.desc:ClearAllPoints()
+    DragGhost.desc:SetPoint("TOP", DragGhost.title, "BOTTOM", 0, -2)
+
+    -- Clone Reward
+    DragGhost.reward:SetFontObject(sourceFrame.reward:GetFontObject())
+    DragGhost.reward:SetText(sourceFrame.reward:GetText())
+    local rr, rg, rb, ra = sourceFrame.reward:GetTextColor()
+    DragGhost.reward:SetTextColor(rr, rg, rb, ra)
+    DragGhost.reward:ClearAllPoints()
+    local _, _, _, _, yOfs = sourceFrame.reward:GetPoint(1)
+    DragGhost.reward:SetPoint("BOTTOM", DragGhost, "BOTTOM", 0, yOfs or 6)
+
+    DragGhost:Show()
+    DragGhost:SetScript("OnUpdate", function(self) 
+        local x, y = GetCursorPosition()
+        local s = self:GetEffectiveScale()
+        self:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x/s, y/s) 
+    end)
 end
-local function StopDragging() DragGhost:Hide(); DragGhost:SetScript("OnUpdate", nil) end
+
+local function StopDragging() 
+    DragGhost:Hide()
+    DragGhost:SetScript("OnUpdate", nil) 
+end
 
 -- =====================================================================
 -- 5. FORWARD DECLARATIONS & LEDGER UI
@@ -1667,30 +1631,58 @@ ParticleEngine:SetScript("OnUpdate", function(self, elapsed)
     end
 end)
 
+-- =====================================================================
+-- CARD THEME & VISUAL ENGINE
+-- =====================================================================
 local function ApplyCardTheme(card, mission)
     for i = #glowingCards, 1, -1 do if glowingCards[i] == card then table.remove(glowingCards, i) end end
     card.missionRarity = nil
+    
     if not mission then
-        card.rarityText:SetText(""); card:SetBackdropBorderColor(0.4, 0.4, 0.4, 1); card:SetBackdropColor(0.05, 0.05, 0.1, 0.85); if card.bgImage then card.bgImage:Hide() end; return
+        card.rarityText:SetText(""); card.title:SetTextColor(1, 1, 1); card:SetBackdropBorderColor(0.4, 0.4, 0.4, 1); card:SetBackdropColor(0.05, 0.05, 0.1, 0.85); if card.bgImage then card.bgImage:Hide() end; return
     end
+    
+    -- Strips the bracketed text completely
+    card.rarityText:SetText("")
+    
     if mission.rarity == "Rare Elite" or mission.rarity == "Boss" then
-        card.rarityText:SetText("["..mission.rarity.."]"); card.rarityText:SetTextColor(1, 0.5, 0); card:SetBackdropBorderColor(1, 0.5, 0, 1); card.missionRarity = mission.rarity; table.insert(glowingCards, card)
+        card.title:SetTextColor(1, 0.5, 0); card:SetBackdropBorderColor(1, 0.5, 0, 1); card.missionRarity = mission.rarity; table.insert(glowingCards, card)
     elseif mission.rarity == "Elite" then
-        card.rarityText:SetText("[Elite]"); card.rarityText:SetTextColor(0.64, 0.21, 0.93); card:SetBackdropBorderColor(0.64, 0.21, 0.93, 1); card.missionRarity = mission.rarity; table.insert(glowingCards, card)
+        card.title:SetTextColor(0.64, 0.21, 0.93); card:SetBackdropBorderColor(0.64, 0.21, 0.93, 1); card.missionRarity = mission.rarity; table.insert(glowingCards, card)
     elseif mission.rarity == "Rare" then
-        card.rarityText:SetText("[Rare]"); card.rarityText:SetTextColor(0, 0.44, 0.87); card:SetBackdropBorderColor(0, 0.44, 0.87, 1); card.missionRarity = mission.rarity; table.insert(glowingCards, card)
+        card.title:SetTextColor(0, 0.44, 0.87); card:SetBackdropBorderColor(0, 0.44, 0.87, 1); card.missionRarity = mission.rarity; table.insert(glowingCards, card)
     elseif mission.rarity == "Standard" then
-        card.rarityText:SetText(""); card:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+        card.title:SetTextColor(1, 0.82, 0); card:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
     end
-    card.title:SetTextColor(1, 1, 1)
 
     if not card.bgImage then card.bgImage = card:CreateTexture(nil, "BORDER"); card.bgImage:SetPoint("TOPLEFT", 4, -4); card.bgImage:SetPoint("BOTTOMRIGHT", -4, 4) end
-    if card:GetWidth() > 300 then card.bgImage:SetTexCoord(0, 1, 0.3, 0.6) else card.bgImage:SetTexCoord(0, 1, 0.1, 0.8) end
+    
+    -- FIX: Frame cropping logic based on card size
+    if card:GetWidth() > 300 then 
+        card.bgImage:SetTexCoord(0, 1, 0.35, 0.55) 
+    else 
+        -- Strictly left-side crop to avoid the center logo
+        card.bgImage:SetTexCoord(0, 0.45, 0.15, 0.65) 
+    end
+    
     local loadScreenSuffix = nil
-    if (mission.trigger == "DUNGEON_CLEAR" or mission.rarity == "Boss") and mission.zone and ZoneLoadingScreens[mission.zone] then loadScreenSuffix = ZoneLoadingScreens[mission.zone] end
+    if (mission.trigger == "DUNGEON_BOSS_KILL" or mission.rarity == "Boss") and mission.zone and ZoneLoadingScreens[mission.zone] then loadScreenSuffix = ZoneLoadingScreens[mission.zone] end
 
-    if loadScreenSuffix then card.bgImage:SetTexture("Interface\\Glues\\LoadingScreens\\" .. loadScreenSuffix); card.bgImage:SetVertexColor(0.35, 0.35, 0.35, 1); card.bgImage:Show(); card:SetBackdropColor(0, 0, 0, 0.7) 
-    else card.bgImage:Hide(); card:SetBackdropColor(0.05, 0.05, 0.1, 0.85) end
+    if loadScreenSuffix then 
+        card.bgImage:SetTexture("Interface\\Glues\\LoadingScreens\\" .. loadScreenSuffix .. ".blp"); 
+        
+        if card:GetWidth() > 300 then
+            card.bgImage:SetVertexColor(0.65, 0.65, 0.65, 1)
+        else
+            card.bgImage:SetVertexColor(0.20, 0.20, 0.20, 1)
+        end
+        
+        card.bgImage:Show(); 
+        card:SetBackdropColor(0, 0, 0, 0.85) 
+    else 
+        card.bgImage:Hide(); 
+        card:SetBackdropColor(0.05, 0.05, 0.1, 0.85) 
+    end
 end
 
 local BoardWarning = BoardContainer:CreateFontString(nil, "OVERLAY", "GameFontRed")
@@ -1701,7 +1693,7 @@ BoardWarning:Hide()
 activeCards = {}
 local activeHeader = BoardContainer:CreateFontString(nil, "OVERLAY", "GameFontNormalMed3")
 activeHeader:SetPoint("TOPLEFT", 20, -105)
-activeHeader:SetText("Active Pacts (Centered dynamically - Drag to Reorder):")
+activeHeader:SetText("Active Pacts (Drag to Reorder):")
 
 for i = 1, 4 do
     local card = CreateFrame("Frame", nil, BoardContainer, "BackdropTemplate")
@@ -1716,10 +1708,15 @@ for i = 1, 4 do
     end)
     card:SetScript("OnDragStart", function(self)
         local canEdit = IsResting() or devMode or not DarkPatronDB.HasInitializedAwakening
-        if canEdit and DarkPatronDB.ActiveMissions[i] then StartDragging("active", i, DarkPatronDB.ActiveMissions[i].title) end
+        if canEdit and DarkPatronDB.ActiveMissions[i] then 
+            StartDragging("active", i, self) 
+            self:SetAlpha(0) -- Hide the original card
+        end
     end)
     card:SetScript("OnDragStop", function(self)
-        StopDragging(); local maxSlots = DarkPatronDB.MaxActiveSlots or 3
+        StopDragging(); 
+        self:SetAlpha(1) -- Snap it back into existence if dropped
+        local maxSlots = DarkPatronDB.MaxActiveSlots or 3
         for j = 1, maxSlots do
             if activeCards[j]:IsMouseOver() and j ~= i and DarkPatronDB.ActiveMissions[i] then
                 local movingData = table.remove(DarkPatronDB.ActiveMissions, i)
@@ -1730,9 +1727,9 @@ for i = 1, 4 do
         end
     end)
     
-    card.rarityText = card:CreateFontString(nil, "OVERLAY", "GameFontNormalTiny"); card.rarityText:SetPoint("TOP", card, "TOP", 0, -6)
-    card.title = card:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall"); card.title:SetPoint("TOP", card.rarityText, "BOTTOM", 0, -1); card.title:SetWidth(155); card.title:SetWordWrap(false)
-    card.desc = card:CreateFontString(nil, "OVERLAY", "GameFontWhiteTiny"); card.desc:SetSize(155, 45); card.desc:SetPoint("TOP", card.title, "BOTTOM", 0, -2); card.desc:SetJustifyH("CENTER"); card.desc:SetJustifyV("TOP")
+    card.rarityText = card:CreateFontString(nil, "OVERLAY", "GameFontNormalTiny"); card.rarityText:SetPoint("TOP", card, "TOP", 0, -4)
+    card.title = card:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall"); card.title:SetPoint("TOP", card.rarityText, "BOTTOM", 0, 0); card.title:SetWidth(155); card.title:SetWordWrap(true)
+    card.desc = card:CreateFontString(nil, "OVERLAY", "GameFontWhiteTiny"); card.desc:SetSize(155, 40); card.desc:SetPoint("TOP", card.title, "BOTTOM", 0, -2); card.desc:SetJustifyH("CENTER"); card.desc:SetJustifyV("TOP")
     card.reward = card:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall"); card.reward:SetPoint("BOTTOM", card, "BOTTOM", 0, 28); card.reward:SetTextColor(1, 0.82, 0)
     
     card.btn = CreateFrame("Button", nil, card, "UIPanelButtonTemplate"); card.btn:SetSize(120, 20); card.btn:SetPoint("BOTTOM", card, "BOTTOM", 0, 5)
@@ -1785,10 +1782,15 @@ for i = 1, 6 do
     end)
     btnCard:SetScript("OnDragStart", function(self)
         local canEdit = IsResting() or devMode or not DarkPatronDB.HasInitializedAwakening
-        if canEdit and DarkPatronDB.PoolOfSix[i] then StartDragging("board", i, DarkPatronDB.PoolOfSix[i].title) end
+        if canEdit and DarkPatronDB.PoolOfSix[i] then 
+            StartDragging("board", i, self) 
+            self:SetAlpha(0) -- Hide the original card
+        end
     end)
     btnCard:SetScript("OnDragStop", function(self)
-        StopDragging(); local canEdit = IsResting() or devMode or not DarkPatronDB.HasInitializedAwakening
+        StopDragging(); 
+        self:SetAlpha(1) -- Snap it back into existence if dropped
+        local canEdit = IsResting() or devMode or not DarkPatronDB.HasInitializedAwakening
         if not canEdit then print("Dark Patron: You must be in a rested area to modify pacts.") return end
 
         local droppedOnActive = false; local maxSlots = DarkPatronDB.MaxActiveSlots or 3
@@ -1808,8 +1810,8 @@ for i = 1, 6 do
         end
     end)
     
-    btnCard.rarityText = btnCard:CreateFontString(nil, "OVERLAY", "GameFontNormalTiny"); btnCard.rarityText:SetPoint("TOP", btnCard, "TOP", 0, -6)
-    btnCard.title = btnCard:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall"); btnCard.title:SetPoint("TOP", btnCard.rarityText, "BOTTOM", 0, -1); btnCard.title:SetWidth(210); btnCard.title:SetWordWrap(false)
+    btnCard.rarityText = btnCard:CreateFontString(nil, "OVERLAY", "GameFontNormalTiny"); btnCard.rarityText:SetPoint("TOP", btnCard, "TOP", 0, -4)
+    btnCard.title = btnCard:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall"); btnCard.title:SetPoint("TOP", btnCard.rarityText, "BOTTOM", 0, 0); btnCard.title:SetWidth(210); btnCard.title:SetWordWrap(true)
     btnCard.desc = btnCard:CreateFontString(nil, "OVERLAY", "GameFontWhiteTiny"); btnCard.desc:SetSize(210, 35); btnCard.desc:SetPoint("TOP", btnCard.title, "BOTTOM", 0, -2); btnCard.desc:SetJustifyH("CENTER"); btnCard.desc:SetJustifyV("TOP")
     btnCard.reward = btnCard:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall"); btnCard.reward:SetPoint("BOTTOM", btnCard, "BOTTOM", 0, 27); btnCard.reward:SetTextColor(1, 0.82, 0)
     
@@ -1875,10 +1877,15 @@ DungeonCard.StackCounter = DungeonCard:CreateFontString(nil, "OVERLAY", "GameFon
 DungeonCard:SetScript("OnDragStart", function(self)
     local canEdit = IsResting() or devMode or not DarkPatronDB.HasInitializedAwakening
     local currentContract = DarkPatronDB.DungeonBounties and DarkPatronDB.DungeonBounties[Ledger.CurrentDungeonIndex]
-    if canEdit and currentContract then StartDragging("dungeon", 7, currentContract.title) end
+    if canEdit and currentContract then 
+        StartDragging("dungeon", 7, self) 
+        self:SetAlpha(0) -- Hide the original card (Reveals the next card in the stack behind it!)
+    end
 end)
 DungeonCard:SetScript("OnDragStop", function(self)
-    StopDragging(); local canEdit = IsResting() or devMode or not DarkPatronDB.HasInitializedAwakening
+    StopDragging(); 
+    self:SetAlpha(1) -- Snap it back into existence if dropped
+    local canEdit = IsResting() or devMode or not DarkPatronDB.HasInitializedAwakening
     if not canEdit then print("Dark Patron: You must be in a rested area to modify pacts.") return end
 
     local droppedOnActive = false; local maxSlots = DarkPatronDB.MaxActiveSlots or 3
@@ -1995,11 +2002,16 @@ ECard.StackCounter:SetTextColor(0.8, 0.8, 0.8)
 ECard:SetScript("OnDragStart", function(self)
     local canEdit = IsResting() or devMode or not DarkPatronDB.HasInitializedAwakening
     local currentContract = DarkPatronDB.EliteBounties and DarkPatronDB.EliteBounties[Ledger.CurrentEliteIndex]
-    if canEdit and currentContract then StartDragging("elite", 8, currentContract.title) end
+    if canEdit and currentContract then 
+        StartDragging("elite", 8, self) 
+        self:SetAlpha(0) -- Hide the original card
+    end
 end)
 
 ECard:SetScript("OnDragStop", function(self)
-    StopDragging(); local canEdit = IsResting() or devMode or not DarkPatronDB.HasInitializedAwakening
+    StopDragging(); 
+    self:SetAlpha(1) -- Snap it back into existence if dropped
+    local canEdit = IsResting() or devMode or not DarkPatronDB.HasInitializedAwakening
     if not canEdit then print("Dark Patron: You must be in a rested area to modify pacts.") return end
 
     local droppedOnActive = false; local maxSlots = DarkPatronDB.MaxActiveSlots or 3
@@ -2330,10 +2342,12 @@ Ledger:SetScript("OnShow", function()
                     activeCards[i].desc:SetText(string.format("%s (%d/%d)", baseDesc, mData.current, mData.goal))
                 else activeCards[i].desc:SetText(mData.desc) end
                 
+                local formattedReward = mData.rewardText:gsub(", ", "\n")
+                
                 if mData.isTimed then
                     local remain = mData.expiresAt - time()
-                    if remain > 0 then activeCards[i].reward:SetText(mData.rewardText .. string.format("\n|cffaaaaaaLeft: %02d:%02d|r", math.floor(remain / 60), remain % 60)) else activeCards[i].reward:SetText(mData.rewardText .. "\n|cffff0000FAILED|r") end
-                else activeCards[i].reward:SetText(mData.rewardText) end
+                    if remain > 0 then activeCards[i].reward:SetText(formattedReward .. string.format("\n|cffaaaaaaLeft: %02d:%02d|r", math.floor(remain / 60), remain % 60)) else activeCards[i].reward:SetText(formattedReward .. "\n|cffff0000FAILED|r") end
+                else activeCards[i].reward:SetText(formattedReward) end
                 
                 if mData.isPvP then activeCards[i].btn:SetText("Discard (Free PvP)") activeCards[i].btn.taxOverride = 0 else activeCards[i].btn:SetText(string.format("Discard (-%d Fav)", baseTaxCost)) activeCards[i].btn.taxOverride = baseTaxCost end
                 if canEdit then activeCards[i].btn:Enable() else activeCards[i].btn:Disable() end
@@ -2349,7 +2363,10 @@ Ledger:SetScript("OnShow", function()
         ApplyCardTheme(poolButtons[i], mData)
         if mData then
             poolButtons[i].title:SetText(mData.baseTitle or mData.title); poolButtons[i].desc:SetText(mData.desc)
-            if mData.isTimed then poolButtons[i].reward:SetText(mData.rewardText .. string.format("\n|cffff0000Limit: %dm|r", math.floor(mData.timeLimit / 60))) else poolButtons[i].reward:SetText(mData.rewardText) end
+            
+            local formattedReward = mData.rewardText:gsub(", ", "\n")
+            
+            if mData.isTimed then poolButtons[i].reward:SetText(formattedReward .. string.format("\n|cffff0000Limit: %dm|r", math.floor(mData.timeLimit / 60))) else poolButtons[i].reward:SetText(formattedReward) end
             if canEdit then poolButtons[i].acceptBtn:Enable() else poolButtons[i].acceptBtn:Disable() end
             poolButtons[i].acceptBtn:Show(); poolButtons[i]:Show()
         else
@@ -2368,12 +2385,18 @@ Ledger:SetScript("OnShow", function()
         local bR, bG, bB = DungeonCard:GetBackdropBorderColor()
         DungeonCard.StackBg1:SetBackdropBorderColor(bR, bG, bB, 1); DungeonCard.StackBg2:SetBackdropBorderColor(bR, bG, bB, 1)
         
-        local function SetStackBg(bgFrame, offset)
+       local function SetStackBg(bgFrame, offset)
             local idx = Ledger.CurrentDungeonIndex + offset
             while idx > #dList do idx = idx - #dList end
             local nextDung = dList[idx]
             if not bgFrame.bgImage then bgFrame.bgImage = bgFrame:CreateTexture(nil, "BORDER"); bgFrame.bgImage:SetPoint("TOPLEFT", 4, -4); bgFrame.bgImage:SetPoint("BOTTOMRIGHT", -4, 4); bgFrame.bgImage:SetTexCoord(0, 1, 0.25, 0.65) end
-            if nextDung and nextDung.zone and ZoneLoadingScreens[nextDung.zone] then bgFrame.bgImage:SetTexture("Interface\\Glues\\LoadingScreens\\" .. ZoneLoadingScreens[nextDung.zone]); bgFrame.bgImage:SetVertexColor(0.2, 0.2, 0.2, 1); bgFrame.bgImage:Show() else bgFrame.bgImage:Hide() end
+            if nextDung and nextDung.zone and ZoneLoadingScreens[nextDung.zone] then 
+                bgFrame.bgImage:SetTexture("Interface\\Glues\\LoadingScreens\\" .. ZoneLoadingScreens[nextDung.zone] .. ".blp"); 
+                bgFrame.bgImage:SetVertexColor(0.4, 0.4, 0.4, 1); 
+                bgFrame.bgImage:Show() 
+            else 
+                bgFrame.bgImage:Hide() 
+            end
         end
 
         if #dList > 1 then
@@ -2497,8 +2520,29 @@ SLASH_DARKPATRON1 = "/patron"
 SlashCmdList["DARKPATRON"] = function(msg)
     if msg == "dev" then 
         devMode = not devMode; 
-        print(devMode and "Dark Patron: Dev Mode ENABLED." or "Dark Patron: Dev Mode DISABLED.")
+        
+        if devMode then
+            print("Dark Patron: Dev Mode ENABLED. Injecting test cards...")
+            DarkPatronDB.DevBackupActive = DarkPatronDB.ActiveMissions
+            DarkPatronDB.DevBackupPool = DarkPatronDB.PoolOfSix
+            
+            local r = { id=9001, title="UI Test (Rare)", desc="Testing Rare card face.", rarity="Rare", rewardText="Test", favor=0, goal=1, current=0, trigger="DUMMY" }
+            local e = { id=9002, title="UI Test (Elite)", desc="Testing Elite card face.", rarity="Elite", rewardText="Test", favor=0, goal=1, current=0, trigger="DUMMY" }
+            local re = { id=9003, title="UI Test (Rare Elite)", desc="Testing Rare Elite card face.", rarity="Rare Elite", rewardText="Test", favor=0, goal=1, current=0, trigger="DUMMY" }
+            
+            DarkPatronDB.ActiveMissions = { r, e, re }
+            DarkPatronDB.PoolOfSix = { r, e, re, r, e, re }
+        else
+            print("Dark Patron: Dev Mode DISABLED. Restoring original pacts...")
+            if DarkPatronDB.DevBackupActive then DarkPatronDB.ActiveMissions = DarkPatronDB.DevBackupActive end
+            if DarkPatronDB.DevBackupPool then DarkPatronDB.PoolOfSix = DarkPatronDB.DevBackupPool end
+            DarkPatronDB.DevBackupActive = nil
+            DarkPatronDB.DevBackupPool = nil
+        end
+        
+        UpdateTracker()
         if Ledger:IsShown() then Ledger:GetScript("OnShow")(Ledger) end
+        
     elseif msg == "bg" then
         DarkPatronDB.TrackerBgHidden = not DarkPatronDB.TrackerBgHidden
         if DarkPatronDB.TrackerBgHidden then
@@ -2510,7 +2554,20 @@ SlashCmdList["DARKPATRON"] = function(msg)
             print("Dark Patron: Tracker background shown.")
         end
     elseif msg == "test dungeon" then
-        -- ... existing test dungeon logic ...
+        local pLvl = UnitLevel("player") or 1
+        local stack = GenerateAllDungeonContracts(pLvl)
+        if stack and #stack > 0 then
+            DarkPatronDB.DungeonBounties = stack
+            Ledger.CurrentDungeonIndex = 1
+            print(string.format("Dark Patron: Injected %d test dungeon contracts into the ledger.", #stack))
+        else
+            print("Dark Patron: No valid dungeons found for your current level.")
+        end
+        
+        -- FIX: Force the minimap to check itself immediately after injection
+        if DP_EvaluateBazaarAlert then DP_EvaluateBazaarAlert() end
+        
+        if Ledger:IsShown() then Ledger:GetScript("OnShow")(Ledger) end
     elseif Ledger:IsShown() then Ledger:Hide() else Ledger:Show() end
 end
 
@@ -2759,8 +2816,18 @@ local function FulfillMission(index, mission)
         DarkPatronDB.ApexSigils = DarkPatronDB.ApexSigils + 1; 
         rewardString = "+1 Apex Sigil"; 
     elseif mission.rarity == "Elite" then 
-        DarkPatronDB.DarkSigils = DarkPatronDB.DarkSigils + 1; 
-        rewardString = "+1 Dark Sigil"; 
+        local sigilsEarned = mission.sigils or 1
+        DarkPatronDB.DarkSigils = DarkPatronDB.DarkSigils + sigilsEarned
+        
+        local favorEarned = mission.favor or 0
+        if favorEarned > 0 then
+            DarkPatronDB.DarkFavor = DarkPatronDB.DarkFavor + favorEarned
+        end
+        
+        rewardString = string.format("+%d Dark Sigil%s", sigilsEarned, sigilsEarned > 1 and "s" or "")
+        if favorEarned > 0 then
+            rewardString = rewardString .. string.format(", +%d Dark Favor", favorEarned)
+        end
     else 
         local favorEarned = (mission.favor or 1) + streakBonus; 
         DarkPatronDB.DarkFavor = DarkPatronDB.DarkFavor + favorEarned; 
