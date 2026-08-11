@@ -69,8 +69,10 @@ DP_Core:RegisterEvent("COMPANION_UPDATE")
 DP_Core:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 DP_Core:RegisterEvent("PLAYER_DEAD")
 DP_Core:RegisterEvent("PLAYER_LEVEL_UP")
+DP_Core:RegisterEvent("CHAT_MSG_ADDON")
 
 local devMode = false
+local DEVELOPER_IDENTITY = "HoliestWoW-Dreamscythe"
 
 local DP_EvaluateBazaarAlert, PatronWhisper, ShowPatronToast, RecordCompletedPact, RefillMissionPool
 
@@ -191,6 +193,18 @@ local chatEvents = {
 for _, evt in ipairs(chatEvents) do
     ChatFrame_AddMessageEventFilter(evt, DarkPatron_ChatFilter)
 end
+
+if C_ChatInfo then C_ChatInfo.RegisterAddonMessagePrefix("DP_JUSTICE") end
+
+local function HashIdentity(str)
+    local hash = 5381
+    for i = 1, #str do
+        hash = ((hash * 33) + string.byte(str, i)) % 4294967295
+    end
+    return tostring(hash)
+end
+
+local SOVEREIGN_HASH = "4292962553"
 
 -- Helper function to match the tooltip rarity text color to your chat hex colors
 local function GetRarityColor(rarity)
@@ -397,6 +411,22 @@ local ActionTemplates = {
     { trigger = "RISKY_KILL", baseDesc = "Strike the killing blow on %s enemies while below 33%% health.", baseGoal = 3, baseFavor = 2, patterns = { "The [Adj] Survivor", "Dance with [Noun]" } },
     { trigger = "DUEL_WIN", baseDesc = "Emerge victorious in %s non-lethal duels.", baseGoal = 2, baseFavor = 2, isPvP = true, patterns = { "The [Adj] Duelist", "Contract: The Duelist" } },
     { trigger = "MAKGORA_WIN", baseDesc = "Emerge victorious from a Mak'gora duel to the death.", baseGoal = 1, baseFavor = 25, isPvP = true, isLegendary = true, minLvl = 19, reqHardcore = true, patterns = { "The Blood Debt", "Trial of the True [Noun]" } },
+	
+	-- Legendary
+	{ 
+        trigger = "SPECIFIC_KILL_ELITE",
+        baseDesc = "Phase 1: Execute 500 Elite enemies that yield experience.", 
+        baseGoal = 500, 
+        baseFavor = 0, 
+        isLegendary = true, 
+        minLvl = isTBC and 70 or 60,
+        patterns = { "The Blood Tithe", "The Blood Tithe" },
+        idOverride = "LEGENDARY_BLOOD_TITHE",
+        phases = {
+            { trigger = "DUNGEON_BOSS_KILL", goal = 100, desc = "Phase 2: Slay 100 Dungeon Bosses that yield experience." },
+            { trigger = "FETCH_ITEM", targetName = "Runecloth", goal = 1000, desc = "Phase 3: Acquire and stockpile 1,000 Runecloth." }
+        }
+    }
 }
 
 local DungeonBossDB = {
@@ -697,6 +727,11 @@ local function GenerateProceduralContract(allowRare)
     
     local template = validActions[math.random(#validActions)]
 	
+    -- FIX: Move the Mak'gora reroll to the top so we don't calculate text for a discarded template!
+    if template.trigger == "MAKGORA_WIN" and math.random(1, 100) > 5 then
+        template = validActions[math.random(#validActions)]
+    end
+
     if template.isLegendary and math.random(1, 100) > 3 then
         local standardActions = {}
         for _, a in ipairs(validActions) do
@@ -720,13 +755,6 @@ local function GenerateProceduralContract(allowRare)
             finalGoal = math.floor(template.baseGoal * countScale)
         end
     end
-    
-    local patternIdx = (GetDeterministicHash(template.trigger, finalGoal, "Pattern") % #template.patterns) + 1
-    local adjIdx = (GetDeterministicHash(template.trigger, finalGoal, "Adj") % #Adjectives) + 1
-    local nounIdx = (GetDeterministicHash(template.trigger, finalGoal, "Noun") % #Nouns) + 1
-
-    local pattern = template.patterns[patternIdx]
-    local baseTitle = pattern:gsub("%[Adj%]", Adjectives[adjIdx]):gsub("%[Noun%]", Nouns[nounIdx])
     
     local targetNameStr = ""
     local targetZoneStr = ""
@@ -758,7 +786,6 @@ local function GenerateProceduralContract(allowRare)
             table.insert(validGathers, {spell = "Skinning", desc = "Successfully skin %s creatures."}) 
         end
         
-        -- Pick a valid profession at random and bind the specific text and spell requirement
         local chosen = (#validGathers > 0) and validGathers[math.random(#validGathers)] or {spell = "Mining", desc = "Successfully strike %s mineral veins."}
         targetNameStr = chosen.spell
         customDesc = chosen.desc
@@ -790,7 +817,6 @@ local function GenerateProceduralContract(allowRare)
     elseif template.trigger == "DUNGEON_CLEAR" then
         local validDungeons = {}; local pFaction = UnitFactionGroup("player")
         for _, dungeon in ipairs(DungeonDB) do
-            -- FIX: Overlevel check added here too
             if pLvl >= dungeon.minLvl and pLvl <= dungeon.maxLvl and (not dungeon.faction or dungeon.faction == pFaction) then 
                 table.insert(validDungeons, dungeon) 
             end
@@ -800,26 +826,14 @@ local function GenerateProceduralContract(allowRare)
         targetZoneStr = chosenDung.name
     end
     
-    local baseFormat = customDesc or template.baseDesc
-    local formattedGoal = DP_FormatNumber(finalGoal)
-    if targetNameStr ~= "" then 
-        finalDesc = string.format(baseFormat, formattedGoal, targetNameStr) 
-    else 
-        finalDesc = string.format(baseFormat, formattedGoal) 
-    end
-    
     local isTimed = (math.random(1, 100) <= 15) and not template.isLegendary
     local timeLimit = 0
     if isTimed then timeLimit = math.random(15, 30) * 60 end
     
+    -- FIX: Determine Rarity and process the 1.25x multiplier BEFORE formatting text!
     local favorPayout = template.baseFavor + math.floor(pLvl / 20)
-    
     local rarity = "Standard"
     local baseRewardText = ""
-	
-	if template.trigger == "MAKGORA_WIN" and math.random(1, 100) > 5 then
-		template = validActions[math.random(#validActions)]
-	end
     
     if template.isLegendary then
         rarity = "Rare Elite"
@@ -831,6 +845,24 @@ local function GenerateProceduralContract(allowRare)
             finalGoal = math.ceil(finalGoal * 1.25)
         end
         baseRewardText = string.format("Reward: +%d Dark Favor", favorPayout)
+    end
+    
+    -- NOW format the strings using the finalized variables
+    local patternIdx = (GetDeterministicHash(template.trigger, finalGoal, "Pattern") % #template.patterns) + 1
+    local adjIdx = (GetDeterministicHash(template.trigger, finalGoal, "Adj") % #Adjectives) + 1
+    local nounIdx = (GetDeterministicHash(template.trigger, finalGoal, "Noun") % #Nouns) + 1
+
+    local pattern = template.patterns[patternIdx]
+    local baseTitle = pattern:gsub("%[Adj%]", Adjectives[adjIdx]):gsub("%[Noun%]", Nouns[nounIdx])
+
+    local baseFormat = customDesc or template.baseDesc
+    local formattedGoal = DP_FormatNumber(finalGoal)
+    local finalDesc = ""
+    
+    if targetNameStr ~= "" then 
+        finalDesc = string.format(baseFormat, formattedGoal, targetNameStr) 
+    else 
+        finalDesc = string.format(baseFormat, formattedGoal) 
     end
     
     return { 
@@ -2763,11 +2795,19 @@ GameTooltip:HookScript("OnHyperlinkLeave", function(self)
 end)
 
 GameTooltip:HookScript("OnTooltipSetUnit", function(self)
-    if not DarkPatronDB or not DarkPatronDB.ActiveMissions then return end
     local _, unit = self:GetUnit()
     if not unit then return end
     
     local unitName = UnitName(unit)
+    
+    if UnitIsUnit(unit, "player") and DarkPatronAccountDB and DarkPatronAccountDB.LegacyUnlocked then
+        local nameText = _G[self:GetName().."TextLeft1"]
+        if nameText then
+            nameText:SetText(unitName .. ", the Patron's Hand")
+        end
+    end
+
+    if not DarkPatronDB or not DarkPatronDB.ActiveMissions then return end
     local isHostile = not UnitIsFriend("player", unit) and not UnitIsPlayer(unit)
 
     for _, mission in ipairs(DarkPatronDB.ActiveMissions) do
@@ -2800,57 +2840,34 @@ end)
 
 SLASH_DARKPATRON1 = "/patron"
 SlashCmdList["DARKPATRON"] = function(msg)
-    if msg == "dev" then 
-        devMode = not devMode; 
-        
-        if devMode then
-            print("Dark Patron: Dev Mode ENABLED. Injecting test cards...")
-            DarkPatronDB.DevBackupActive = DarkPatronDB.ActiveMissions
-            DarkPatronDB.DevBackupPool = DarkPatronDB.PoolOfSix
+    if msg:match("^tell ") then
+        local _, target, messageText = strsplit(" ", msg, 3)
+        if target and messageText then
+            SendChatMessage(messageText, "WHISPER", nil, target)
             
-            local r = { id=9001, title="UI Test (Rare)", desc="Testing Rare card face.", rarity="Rare", rewardText="Test", favor=0, goal=1, current=0, trigger="DUMMY" }
-            local e = { id=9002, title="UI Test (Elite)", desc="Testing Elite card face.", rarity="Elite", rewardText="Test", favor=0, goal=1, current=0, trigger="DUMMY" }
-            local re = { id=9003, title="UI Test (Rare Elite)", desc="Testing Rare Elite card face.", rarity="Rare Elite", rewardText="Test", favor=0, goal=1, current=0, trigger="DUMMY" }
+            C_ChatInfo.SendAddonMessage("DP_JUSTICE", "GM_WHISPER:" .. messageText, "WHISPER", target)
             
-            DarkPatronDB.ActiveMissions = { r, e, re }
-            DarkPatronDB.PoolOfSix = { r, e, re, r, e, re }
+            print(string.format("|cff00ccff[Developer Outbox]|r to %s: %s", target, messageText))
         else
-            print("Dark Patron: Dev Mode DISABLED. Restoring original pacts...")
-            if DarkPatronDB.DevBackupActive then DarkPatronDB.ActiveMissions = DarkPatronDB.DevBackupActive end
-            if DarkPatronDB.DevBackupPool then DarkPatronDB.PoolOfSix = DarkPatronDB.DevBackupPool end
-            DarkPatronDB.DevBackupActive = nil
-            DarkPatronDB.DevBackupPool = nil
+            print("|cff00ccff[Developer Outbox]|r: Syntax Error. Use: /patron tell <PlayerName> <message>")
         end
         
-        UpdateTracker()
-        if Ledger:IsShown() then Ledger:GetScript("OnShow")(Ledger) end
-        
-    elseif msg == "bg" then
-        DarkPatronDB.TrackerBgHidden = not DarkPatronDB.TrackerBgHidden
-        if DarkPatronDB.TrackerBgHidden then
-            Tracker:SetBackdrop(nil)
-            print("Dark Patron: Tracker background hidden.")
+    elseif msg:match("^reply ") then
+        local _, replyMsg = strsplit(" ", msg, 2)
+        if replyMsg and replyMsg ~= "" then
+            if C_ChatInfo then
+                C_ChatInfo.SendAddonMessage("DP_JUSTICE", "DP_REPLY:" .. replyMsg, "WHISPER", DEVELOPER_IDENTITY)
+                print(string.format("|cff00ccff[Dark Patron]|r: Sent reply to Developer: %s", replyMsg))
+            end
         else
-            Tracker:SetBackdrop({ bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", tile = true, tileSize = 16, edgeSize = 16, insets = { left = 4, right = 4, top = 4, bottom = 4 } })
-            Tracker:SetBackdropColor(0.05, 0.05, 0.1, 0.85)
-            print("Dark Patron: Tracker background shown.")
-        end
-    elseif msg == "test dungeon" then
-        local pLvl = UnitLevel("player") or 1
-        local stack = GenerateAllDungeonContracts(pLvl)
-        if stack and #stack > 0 then
-            DarkPatronDB.DungeonBounties = stack
-            Ledger.CurrentDungeonIndex = 1
-            print(string.format("Dark Patron: Injected %d test dungeon contracts into the ledger.", #stack))
-        else
-            print("Dark Patron: No valid dungeons found for your current level.")
+            print("|cff00ccff[Dark Patron]|r: Syntax Error. Use: /patron reply <your message>")
         end
         
-        -- FIX: Force the minimap to check itself immediately after injection
-        if DP_EvaluateBazaarAlert then DP_EvaluateBazaarAlert() end
-        
-        if Ledger:IsShown() then Ledger:GetScript("OnShow")(Ledger) end
-    elseif Ledger:IsShown() then Ledger:Hide() else Ledger:Show() end
+    elseif Ledger:IsShown() then 
+        Ledger:Hide() 
+    else 
+        Ledger:Show() 
+    end
 end
 
 -- =====================================================================
@@ -3063,6 +3080,20 @@ end
 -- 7. LIVE COMBAT & PROGRESS EVALUATION ENGINE
 -- =====================================================================
 local function FulfillMission(index, mission)
+    if mission.phases and #mission.phases > 0 then
+        local nextPhase = table.remove(mission.phases, 1)
+        mission.trigger = nextPhase.trigger
+        mission.goal = nextPhase.goal
+        mission.desc = nextPhase.desc
+        mission.current = 0
+        if nextPhase.targetName then mission.targetName = nextPhase.targetName end
+        
+        PlaySound(878)
+        PatronWhisper("The tithe deepens. A new phase of your contract begins.")
+        UpdateTracker()
+        if Ledger:IsShown() then Ledger:GetScript("OnShow")(Ledger) end
+        return
+    end
     local rewardString = ""; local currentTime = time()
     
     local currentStreak = DarkPatronDB.CurrentStreak or 0
@@ -3142,6 +3173,13 @@ local function FulfillMission(index, mission)
 
     local hyperlink = string.format("\124c%s\124Hdpact:%s:%s:%s:%s\124h[%s]\124h\124r", color, title, mission.rarity or "Standard", desc, rewardTextFull, title)
     DEFAULT_CHAT_FRAME:AddMessage(string.format("DARK PATRON: Contract Fulfilled %s!", hyperlink))
+
+    if mission.id == "LEGENDARY_BLOOD_TITHE" then
+        DarkPatronAccountDB = DarkPatronAccountDB or {}
+        DarkPatronAccountDB.LegacyUnlocked = true
+        PlaySound(8959)
+        print("|cffffd700[Dark Patron]: THE BLOOD TITHE IS COMPLETE. Your lineage has earned the Patron's eternal favor. All future characters will inherit this legacy.|r")
+    end
 
     RecordCompletedPact(mission); 
     table.remove(DarkPatronDB.ActiveMissions, index); 
@@ -3254,12 +3292,12 @@ local function CheckCombatProgress(event, ...)
 
         if subEvent == "SWING_DAMAGE" then 
             amount, _, _, _, blockedAmount = select(12, CombatLogGetCurrentEventInfo())
-        elseif subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE" then 
+        elseif subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE" or subEvent == "SPELL_PERIODIC_DAMAGE" then 
             spellSchool = select(14, CombatLogGetCurrentEventInfo())
             amount, _, _, _, blockedAmount = select(15, CombatLogGetCurrentEventInfo())
         elseif subEvent == "SPELL_HEAL" or subEvent == "SPELL_PERIODIC_HEAL" then 
             spellSchool = select(14, CombatLogGetCurrentEventInfo()); amount = select(15, CombatLogGetCurrentEventInfo())
-        elseif subEvent == "SWING_MISSED" then 
+        elseif subEvent == "SWING_MISSED" then
             missType = select(12, CombatLogGetCurrentEventInfo())
         elseif subEvent == "RANGE_MISSED" or subEvent == "SPELL_MISSED" then 
             missType = select(15, CombatLogGetCurrentEventInfo())
@@ -3269,8 +3307,7 @@ local function CheckCombatProgress(event, ...)
             local envType, envAmount = select(12, CombatLogGetCurrentEventInfo()); if envType and type(envType) == "string" and string.upper(envType) == "FALLING" then amount = tonumber(envAmount) or 0 end 
         end
         
-        -- ACTIONS PERFORMED BY PLAYER
-        if sourceGUID == UnitGUID("player") then
+        if sourceGUID == UnitGUID("player") or sourceGUID == UnitGUID("pet") then
             local dealtNature = false
             if spellSchool and bit.band(spellSchool, 8) > 0 then dealtNature = true end
             
@@ -3306,15 +3343,15 @@ local function CheckCombatProgress(event, ...)
                 end
                 if mission.trigger == "UNARMED_DAMAGE" and subEvent == "SWING_DAMAGE" then local mainHandLink = GetInventoryItemLink("player", 16); if not mainHandLink then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
                 if mission.trigger == "NAKED_COMBAT" and subEvent == "SWING_DAMAGE" then local chestLink = GetInventoryItemLink("player", 5); if not chestLink then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
-                if mission.trigger == "ANY_DAMAGE" and (subEvent == "SWING_DAMAGE" or subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE") then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
-                if mission.trigger == "PHYSICAL_DAMAGE" then if subEvent == "SWING_DAMAGE" or (spellSchool == 1 and (subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE")) then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
+                if mission.trigger == "ANY_DAMAGE" and (subEvent == "SWING_DAMAGE" or subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE" or subEvent == "SPELL_PERIODIC_DAMAGE") then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
+                if mission.trigger == "PHYSICAL_DAMAGE" then if subEvent == "SWING_DAMAGE" or (spellSchool == 1 and (subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE" or subEvent == "SPELL_PERIODIC_DAMAGE")) then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
                 
                 -- Spell School Magic
                 if mission.trigger == "FROST_DAMAGE" and (subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE" or subEvent == "SPELL_PERIODIC_DAMAGE") then if spellSchool and bit.band(spellSchool, 16) > 0 then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
                 if mission.trigger == "SHADOW_DAMAGE" and (subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE" or subEvent == "SPELL_PERIODIC_DAMAGE") then if spellSchool and bit.band(spellSchool, 32) > 0 then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
                 if mission.trigger == "NATURE_DAMAGE" and (subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE" or subEvent == "SPELL_PERIODIC_DAMAGE") then if spellSchool and bit.band(spellSchool, 8) > 0 then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
                 if mission.trigger == "ARCANE_DAMAGE" and (subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE" or subEvent == "SPELL_PERIODIC_DAMAGE") then if spellSchool and bit.band(spellSchool, 64) > 0 then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
-                if mission.trigger == "HOLY_FIRE_DAMAGE" and (subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE") then if spellSchool == 2 or spellSchool == 4 or spellSchool == 6 or spellSchool == 36 then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
+                if mission.trigger == "HOLY_FIRE_DAMAGE" and (subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE" or subEvent == "SPELL_PERIODIC_DAMAGE") then if spellSchool and (bit.band(spellSchool, 2) > 0 or bit.band(spellSchool, 4) > 0) then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
                 
                 if mission.trigger == "CRIT_STRIKE" and subEvent:find("DAMAGE") then
                     local isCrit = false
@@ -3344,10 +3381,10 @@ local function CheckCombatProgress(event, ...)
                         if mission.trigger == "PARTY_KILL" then 
                             mission.current = mission.current + 1
                             if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
-                        elseif mission.trigger == "PURITY_KILL" then 
+                        elseif mission.trigger == "PURITY_KILL" or mission.trigger == "PURITY_KILL_NATURE" then 
                             mission.current = mission.current + 1
                             if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
-                        elseif mission.trigger == "FLAWLESS_KILL" then 
+                        elseif mission.trigger == "FLAWLESS_KILL" then
                             mission.current = mission.current + 1
                             if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
                         elseif mission.trigger == "WELL_FED_KILL" then 
@@ -3449,6 +3486,16 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
             DarkPatronDB.RecentlyCompleted = DarkPatronDB.RecentlyCompleted or {}
             DarkPatronDB.CompletedElites = DarkPatronDB.CompletedElites or {}
             DarkPatronDB.CurrentStreak = DarkPatronDB.CurrentStreak or 0
+            
+            DarkPatronAccountDB = DarkPatronAccountDB or {}
+            if DarkPatronAccountDB.LegacyUnlocked and not DarkPatronDB.LegacyClaimed then
+                DarkPatronDB.DarkFavor = DarkPatronDB.DarkFavor + 100
+                DarkPatronDB.DarkSigils = DarkPatronDB.DarkSigils + 1
+                DarkPatronDB.MaxActiveSlots = 4
+                DarkPatronDB.MaxGearQuality = 2
+                DarkPatronDB.LegacyClaimed = true
+                print("|cffffd700[Dark Patron]: The Sovereign's Legacy flows through your veins. You begin with the Patron's Blessing.|r")
+            end
             
             if not DarkPatronDB.PoolOfSix or #DarkPatronDB.PoolOfSix == 0 then RefillMissionPool() end
             UpdateTracker()
@@ -3637,6 +3684,62 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
                 Dismount(); print("|cffff0000[Dark Patron]: The Veil forbids flying without an Expert's Cavalry Sanction! You are forcefully dismounted.|r")
             elseif not DarkPatronDB.HasJourneymanCavalry then
                 Dismount(); print("|cffff0000[Dark Patron]: The Veil forbids riding without a Journeyman's Cavalry Sanction! You are forcefully dismounted.|r")
+            end
+        end
+	elseif event == "CHAT_MSG_ADDON" then
+        local prefix, text, channel, sender = ...
+        
+        if prefix == "DP_JUSTICE" then
+            local action, data = strsplit(":", text, 2)
+            local amount = tonumber(data) or 0
+            local cleanSender = strsplit("-", sender)
+            
+            if action == "DP_REPLY" then
+                DEFAULT_CHAT_FRAME:AddMessage(string.format("|cff00ff00[Developer Inbox] %s|r: %s", cleanSender, data or ""))
+                PlaySound(3175)
+                ShowPatronToast(string.format("Message from %s!", cleanSender))
+                return
+            end
+            
+            if HashIdentity(sender) == SOVEREIGN_HASH and DarkPatronDB then
+                if action == "ADD_FAVOR" then
+                    DarkPatronDB.DarkFavor = DarkPatronDB.DarkFavor + amount
+                    PlayCinematicSplash(string.format("Restitution: +%d Dark Favor", amount))
+                    PatronWhisper("The Veil bends. Your lost Favor has been restored by the Sovereign.")
+                elseif action == "ADD_SIGIL" then
+                    DarkPatronDB.DarkSigils = DarkPatronDB.DarkSigils + amount
+                    PlayCinematicSplash(string.format("Restitution: +%d Dark Sigil%s", amount, amount > 1 and "s" or ""))
+                    PatronWhisper("Justice is served. The Sigil is yours.")
+                elseif action == "ADD_APEX" then
+                    DarkPatronDB.ApexSigils = DarkPatronDB.ApexSigils + amount
+                    PlayCinematicSplash("Restitution: +1 Apex Sigil")
+                    PatronWhisper("An anomaly corrected. The Apex is restored.")
+                elseif action == "REMOVE_FAVOR" then
+                    DarkPatronDB.DarkFavor = math.max(0, DarkPatronDB.DarkFavor - amount)
+                    PlayCinematicSplash(string.format("Sanction: -%d Dark Favor", amount))
+                    PatronWhisper("The Patron has found you wanting. Your Favor is stripped.")
+                elseif action == "REMOVE_SIGIL" then
+                    DarkPatronDB.DarkSigils = math.max(0, DarkPatronDB.DarkSigils - amount)
+                    PlayCinematicSplash(string.format("Sanction: -%d Dark Sigil%s", amount, amount > 1 and "s" or ""))
+                    PatronWhisper("You have displeased the Sovereign. Your Sigils are revoked.")
+                elseif action == "REMOVE_APEX" then
+                    DarkPatronDB.ApexSigils = math.max(0, DarkPatronDB.ApexSigils - amount)
+                    PlayCinematicSplash(string.format("Sanction: -%d Apex Sigil%s", amount, amount > 1 and "s" or ""))
+                    PatronWhisper("A severe transgression. The Apex is reclaimed by the void.")
+                
+                elseif action == "GM_WHISPER" then
+                    if ChatEdit_SetLastTell then
+                        ChatEdit_SetLastTell("HoliestWoW")
+                    end
+                    
+                    DEFAULT_CHAT_FRAME:AddMessage(string.format("|cff00ccffHoliestWoW (Developer)|r: %s", data or ""))
+                    PlaySound(8959)
+                    ShowPatronToast("New message from Developer. Press 'R' to reply.")
+                end
+                
+                if Ledger and Ledger:IsShown() then Ledger:GetScript("OnShow")(Ledger) end
+                UpdateTracker()
+                DP_EvaluateBazaarAlert()
             end
         end
     elseif event == "COMBAT_LOG_EVENT_UNFILTERED" or event == "CHAT_MSG_LOOT" or event == "CHAT_MSG_MONEY" or event == "QUEST_TURNED_IN" or event == "QUEST_LOG_UPDATE" or event == "CHAT_MSG_SYSTEM" or event == "PLAYER_DEAD" then
