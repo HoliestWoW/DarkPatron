@@ -120,6 +120,21 @@ local function GetSpentTalentPoints()
     return spent
 end
 
+local function GivesExperience(targetLevel)
+    local pLvl = UnitLevel("player") or 1
+    local grayLevel = 0
+    
+    if pLvl <= 5 then
+        grayLevel = 0
+    elseif pLvl <= 39 then
+        grayLevel = pLvl - math.floor(pLvl / 10) - 5
+    else
+        grayLevel = pLvl - math.floor(pLvl / 5) - 1
+    end
+    
+    return targetLevel > grayLevel
+end
+
 local function DP_InsertPactToChat(mission)
     if not mission then return end
     
@@ -425,44 +440,46 @@ local DungeonBossDB = {
     [14354]=true, [14327]=true, [13280]=true, [11490]=true, [11492]=true, [14326]=true, [14322]=true, [14321]=true, [14323]=true, [14325]=true, [14324]=true, [11501]=true, [11489]=true, [11487]=true, [11467]=true, [11488]=true, [11496]=true, [11486]=true
 }
 
+local isTBC = (WOW_PROJECT_ID == WOW_PROJECT_BURNING_CRUSADE_CLASSIC)
+
 local DungeonDB = {
-    -- Classic Dungeons
-    { name = "Ragefire Chasm", instanceID = 2437, minLvl = 13, maxLvl = 20, faction = "Horde", bossCount = 4 }, 
-    { name = "Wailing Caverns", instanceID = 718, minLvl = 15, maxLvl = 25, bossCount = 8 }, 
-    { name = "The Deadmines", instanceID = 1581, minLvl = 15, maxLvl = 25, faction = "Alliance", bossCount = 6 }, 
-    { name = "Shadowfang Keep", instanceID = 209, minLvl = 18, maxLvl = 28, bossCount = 9 }, 
-    { name = "The Stockade", instanceID = 717, minLvl = 22, maxLvl = 30, faction = "Alliance", bossCount = 5 }, 
-    { name = "Blackfathom Deeps", instanceID = 719, minLvl = 20, maxLvl = 30, bossCount = 8 }, 
-    { name = "Gnomeregan", instanceID = 721, minLvl = 28, maxLvl = 38, bossCount = 6 }, 
-    { name = "Razorfen Kraul", instanceID = 491, minLvl = 28, maxLvl = 38, bossCount = 6 }, 
+    -- Classic Dungeons (With TBC Hardcore-compliant max levels)
+    { name = "Ragefire Chasm", instanceID = 2437, minLvl = 13, maxLvl = (isTBC and 20 or 20), faction = "Horde", bossCount = 4 }, 
+    { name = "Wailing Caverns", instanceID = 718, minLvl = 15, maxLvl = (isTBC and 24 or 24), bossCount = 8 }, 
+    { name = "The Deadmines", instanceID = 1581, minLvl = 15, maxLvl = (isTBC and 24 or 26), faction = "Alliance", bossCount = 6 }, 
+    { name = "Shadowfang Keep", instanceID = 209, minLvl = 18, maxLvl = (isTBC and 25 or 30), bossCount = 9 }, 
+    { name = "The Stockade", instanceID = 717, minLvl = 22, maxLvl = (isTBC and 29 or 32), faction = "Alliance", bossCount = 5 }, 
+    { name = "Blackfathom Deeps", instanceID = 719, minLvl = 20, maxLvl = (isTBC and 28 or 32), bossCount = 8 }, 
+    { name = "Gnomeregan", instanceID = 721, minLvl = 28, maxLvl = (isTBC and 32 or 38), bossCount = 6 }, 
+    { name = "Razorfen Kraul", instanceID = 491, minLvl = 28, maxLvl = (isTBC and 31 or 38), bossCount = 6 }, 
     
     -- SM Wings (All share ID 796)
-    { name = "Scarlet Monastery: Graveyard", instanceID = 796, minLvl = 30, maxLvl = 34, bossCount = 2 }, 
-    { name = "Scarlet Monastery: Library", instanceID = 796, minLvl = 33, maxLvl = 37, bossCount = 2 }, 
-    { name = "Scarlet Monastery: Armory", instanceID = 796, minLvl = 35, maxLvl = 39, bossCount = 1 }, 
-    { name = "Scarlet Monastery: Cathedral", instanceID = 796, minLvl = 38, maxLvl = 42, bossCount = 3 }, 
+    { name = "Scarlet Monastery: Graveyard", instanceID = 796, minLvl = 30, maxLvl = (isTBC and 44 or 45), bossCount = 2 }, 
+    { name = "Scarlet Monastery: Library", instanceID = 796, minLvl = 33, maxLvl = (isTBC and 44 or 45), bossCount = 2 }, 
+    { name = "Scarlet Monastery: Armory", instanceID = 796, minLvl = 35, maxLvl = (isTBC and 44 or 45), bossCount = 1 }, 
+    { name = "Scarlet Monastery: Cathedral", instanceID = 796, minLvl = 38, maxLvl = (isTBC and 44 or 45), bossCount = 3 }, 
     
-    { name = "Razorfen Downs", instanceID = 722, minLvl = 38, maxLvl = 48, bossCount = 6 }, 
-    { name = "Uldaman", instanceID = 1337, minLvl = 40, maxLvl = 50, bossCount = 8 }, 
-    { name = "Zul'Farrak", instanceID = 1176, minLvl = 42, maxLvl = 52, bossCount = 9 }, 
-    { name = "Maraudon", instanceID = 2100, minLvl = 45, maxLvl = 55, bossCount = 8 }, 
-    { name = "Temple of Atal'Hakkar", instanceID = 1477, minLvl = 50, maxLvl = 58, bossCount = 10 }, 
+    { name = "Razorfen Downs", instanceID = 722, minLvl = 38, maxLvl = (isTBC and 41 or 46), bossCount = 6 }, 
+    { name = "Uldaman", instanceID = 1337, minLvl = 40, maxLvl = (isTBC and 44 or 51), bossCount = 8 }, 
+    { name = "Zul'Farrak", instanceID = 1176, minLvl = 42, maxLvl = (isTBC and 50 or 54), bossCount = 9 }, 
+    { name = "Maraudon", instanceID = 2100, minLvl = 45, maxLvl = (isTBC and 52 or 55), bossCount = 8 }, 
+    { name = "Temple of Atal'Hakkar", instanceID = 1477, minLvl = 50, maxLvl = (isTBC and 54 or 60), bossCount = 10 }, 
     { name = "Blackrock Depths", instanceID = 1584, minLvl = 52, maxLvl = 60, bossCount = 19 }, 
     
     -- BRS Wings (All share ID 1583)
-    { name = "Lower Blackrock Spire", instanceID = 1583, minLvl = 56, maxLvl = 60, bossCount = 9 }, 
-    { name = "Upper Blackrock Spire", instanceID = 1583, minLvl = 58, maxLvl = 60, bossCount = 5 }, 
+    { name = "Lower Blackrock Spire", instanceID = 1583, minLvl = 56, maxLvl = (isTBC and 62 or 60), bossCount = 9 }, 
+    { name = "Upper Blackrock Spire", instanceID = 1583, minLvl = 58, maxLvl = (isTBC and 62 or 60), bossCount = 5 }, 
     
-    { name = "Scholomance", instanceID = 2057, minLvl = 58, maxLvl = 60, bossCount = 13 }, 
+    { name = "Scholomance", instanceID = 2057, minLvl = 58, maxLvl = (isTBC and 62 or 60), bossCount = 13 }, 
     
     -- Stratholme Wings (All share ID 2017)
-    { name = "Stratholme (Live)", instanceID = 2017, minLvl = 58, maxLvl = 60, bossCount = 11 }, 
-    { name = "Stratholme (Undead)", instanceID = 2017, minLvl = 58, maxLvl = 60, bossCount = 8 }, 
+    { name = "Stratholme (Live)", instanceID = 2017, minLvl = 58, maxLvl = (isTBC and 62 or 60), bossCount = 11 }, 
+    { name = "Stratholme (Undead)", instanceID = 2017, minLvl = 58, maxLvl = (isTBC and 62 or 60), bossCount = 8 }, 
     
     -- Dire Maul Wings (All share ID 2557)
-    { name = "Dire Maul (East)", instanceID = 2557, minLvl = 56, maxLvl = 60, bossCount = 5 }, 
-    { name = "Dire Maul (North)", instanceID = 2557, minLvl = 56, maxLvl = 60, bossCount = 7 }, 
-    { name = "Dire Maul (West)", instanceID = 2557, minLvl = 56, maxLvl = 60, bossCount = 6 },
+    { name = "Dire Maul (East)", instanceID = 2557, minLvl = 56, maxLvl = (isTBC and 62 or 60), bossCount = 5 }, 
+    { name = "Dire Maul (North)", instanceID = 2557, minLvl = 56, maxLvl = (isTBC and 62 or 60), bossCount = 7 }, 
+    { name = "Dire Maul (West)", instanceID = 2557, minLvl = 56, maxLvl = (isTBC and 62 or 60), bossCount = 6 },
 
     -- TBC Dungeons
     { name = "Hellfire Ramparts", instanceID = 3562, minLvl = 59, maxLvl = 67, bossCount = 3 },
@@ -503,6 +520,38 @@ local RaidDB = {
     { name = "Black Temple", instanceID = 3959, minLvl = 70, bossGoal = 9 },
     { name = "Sunwell Plateau", instanceID = 4075, minLvl = 70, bossGoal = 6 }
 }
+
+local function IsGroupValidForDungeon(instanceID)
+    local dInfo = nil
+    for _, d in ipairs(DungeonDB) do
+        if d.instanceID == instanceID then
+            dInfo = d
+            break
+        end
+    end
+    
+    -- If it's a Raid or not in the DungeonDB, skip the check
+    if not dInfo then return true end 
+
+    -- Support both standard parties and Raid frames (for 10-man UBRS/LBRS)
+    local prefix = IsInRaid() and "raid" or "party"
+    local maxCount = IsInRaid() and 40 or 4
+
+    for i = 1, maxCount do
+        local unit = prefix .. i
+        -- Ensure the unit exists and is NOT the player (preserving self-grandfathering)
+        if UnitExists(unit) and not UnitIsUnit(unit, "player") then
+            local memberLvl = UnitLevel(unit)
+            
+            -- If their level is readable, enforce the strict level brackets
+            if memberLvl > 0 and (memberLvl > dInfo.maxLvl or memberLvl < dInfo.minLvl) then
+                return false
+            end
+        end
+    end
+    
+    return true
+end
 
 local function GetDeterministicHash(trigger, goal, offset)
     local hash = 0
@@ -697,6 +746,23 @@ local function GenerateProceduralContract(allowRare)
         local chosenItem = (#validItems > 0) and validItems[math.random(#validItems)] or TradeGoodsDB[1]
         targetNameStr = chosenItem.name
         
+    elseif template.trigger == "GATHER_NODE" then
+        local validGathers = {}
+        if GetPlayerSkillLevel("Mining") >= expectedMinSkill then 
+            table.insert(validGathers, {spell = "Mining", desc = "Successfully strike %s mineral veins."}) 
+        end
+        if GetPlayerSkillLevel("Herbalism") >= expectedMinSkill then 
+            table.insert(validGathers, {spell = "Herb Gathering", desc = "Successfully harvest %s wild herbs."}) 
+        end
+        if GetPlayerSkillLevel("Skinning") >= expectedMinSkill then 
+            table.insert(validGathers, {spell = "Skinning", desc = "Successfully skin %s creatures."}) 
+        end
+        
+        -- Pick a valid profession at random and bind the specific text and spell requirement
+        local chosen = (#validGathers > 0) and validGathers[math.random(#validGathers)] or {spell = "Mining", desc = "Successfully strike %s mineral veins."}
+        targetNameStr = chosen.spell
+        customDesc = chosen.desc
+
     elseif template.trigger == "FISH_CATCH" then
         local validItems = {}; local pSkill = GetPlayerSkillLevel("Fishing")
         for _, item in ipairs(DP.FishingDB) do
@@ -791,7 +857,6 @@ local function GenerateAllDungeonContracts(pLvl)
     local validContracts = {}
     local pFaction = UnitFactionGroup("player")
     for _, dungeon in ipairs(DungeonDB) do
-        -- FIX: Added pLvl <= dungeon.maxLvl to prevent low-level dungeon farming
         if pLvl >= dungeon.minLvl and pLvl <= dungeon.maxLvl and (not dungeon.faction or dungeon.faction == pFaction) then 
             local bossGoal = dungeon.bossCount or 3
             local sigilPayout = (bossGoal >= 8) and 2 or 1
@@ -809,7 +874,7 @@ local function GenerateAllDungeonContracts(pLvl)
             
             table.insert(validContracts, { 
                 id = GetDeterministicHash("DUNGEON_CLEAR", bossGoal, dungeon.name .. GetTime()), 
-                title = "Purge of " .. dungeon.name, 
+                title = "Purge of " .. dungeon.name, -- Reverted to clean title
                 desc = dynamicDesc, 
                 rarity = "Elite", 
                 rewardText = rewardStr, 
@@ -823,7 +888,9 @@ local function GenerateAllDungeonContracts(pLvl)
                 zone = dungeon.name, 
                 isPvP = false, 
                 isLegendary = false, 
-                isTimed = false 
+                isTimed = false,
+                reqMinLvl = dungeon.minLvl, -- Store the exact requirements!
+                reqMaxLvl = dungeon.maxLvl
             })
         end
     end
@@ -876,11 +943,62 @@ end
 local function CheckLevelMilestoneDungeons()
     if not DarkPatronDB then return end
     local pLvl = UnitLevel("player") or 1
+    local pFaction = UnitFactionGroup("player")
     
-    -- Generate all valid dungeons for the new level
+    DarkPatronDB.DungeonBounties = DarkPatronDB.DungeonBounties or {}
+    
+    -- 1. Purge outleveled or invalid dungeons from the waiting stack
+    for i = #DarkPatronDB.DungeonBounties, 1, -1 do
+        local waitingDung = DarkPatronDB.DungeonBounties[i]
+        local stillValid = false
+        for _, dbDung in ipairs(DungeonDB) do
+            if dbDung.instanceID == waitingDung.targetInstanceID then
+                if pLvl >= dbDung.minLvl and pLvl <= dbDung.maxLvl and (not dbDung.faction or dbDung.faction == pFaction) then
+                    stillValid = true
+                end
+                break
+            end
+        end
+        if not stillValid then
+            table.remove(DarkPatronDB.DungeonBounties, i)
+        end
+    end
+
+    -- 2. Generate the fresh stack and merge only what is missing
     local newStack = GenerateAllDungeonContracts(pLvl)
+    local addedNew = false
+
     if newStack and #newStack > 0 then
-        DarkPatronDB.DungeonBounties = newStack
+        for _, newContract in ipairs(newStack) do
+            local isDuplicate = false
+            
+            -- Check if it's already waiting in the stack
+            for _, existing in ipairs(DarkPatronDB.DungeonBounties) do
+                if existing.targetInstanceID == newContract.targetInstanceID then
+                    isDuplicate = true
+                    break
+                end
+            end
+            
+            -- Check if they already pulled it into their Active Pacts
+            if not isDuplicate and DarkPatronDB.ActiveMissions then
+                for _, active in ipairs(DarkPatronDB.ActiveMissions) do
+                    if active.trigger == "DUNGEON_BOSS_KILL" and active.targetInstanceID == newContract.targetInstanceID then
+                        isDuplicate = true
+                        break
+                    end
+                end
+            end
+            
+            -- If it's truly new, inject it!
+            if not isDuplicate then
+                table.insert(DarkPatronDB.DungeonBounties, newContract)
+                addedNew = true
+            end
+        end
+    end
+
+    if addedNew then
         if ShowPatronToast then 
             ShowPatronToast("New Dungeon Pacts have opened in your Ledger!") 
         end
@@ -2011,6 +2129,9 @@ DungeonCard.rarityText = DungeonCard:CreateFontString(nil, "OVERLAY", "GameFontN
 DungeonCard.title = DungeonCard:CreateFontString(nil, "OVERLAY", "GameFontNormal"); DungeonCard.title:SetPoint("TOP", DungeonCard.rarityText, "BOTTOM", 0, -1); DungeonCard.title:SetWidth(450)
 DungeonCard.desc = DungeonCard:CreateFontString(nil, "OVERLAY", "GameFontWhiteTiny"); DungeonCard.desc:SetPoint("TOP", DungeonCard.title, "BOTTOM", 0, -2); DungeonCard.desc:SetWidth(450)
 DungeonCard.reward = DungeonCard:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall"); DungeonCard.reward:SetPoint("BOTTOM", DungeonCard, "BOTTOM", 0, 6); DungeonCard.reward:SetTextColor(1, 0.82, 0)
+DungeonCard.levelReq = DungeonCard:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+DungeonCard.levelReq:SetPoint("LEFT", DungeonCard, "LEFT", 20, 0)
+DungeonCard.levelReq:SetTextColor(0.8, 0.8, 0.8) -- Soft silver color
 DungeonCard.acceptBtn = CreateFrame("Button", nil, DungeonCard, "UIPanelButtonTemplate"); DungeonCard.acceptBtn:SetSize(110, 20); DungeonCard.acceptBtn:SetPoint("RIGHT", DungeonCard, "RIGHT", -15, 0); DungeonCard.acceptBtn:SetText("Accept Pact")
 
 DungeonCard.NextBtn = CreateFrame("Button", nil, DungeonCard); DungeonCard.NextBtn:SetSize(24, 24); DungeonCard.NextBtn:SetPoint("RIGHT", DungeonCard.acceptBtn, "LEFT", -15, 0)
@@ -2380,16 +2501,17 @@ CreateStoreCard(false, 5, "The Blood Contract", "Trade 50 Favor to hunt a level-
         local pFaction = UnitFactionGroup("player") or "Any"
         local validElites = {}; local localElites = {}; local currentZone = GetRealZoneText() or ""
         
-        -- The restored filtering logic!
         for _, elite in ipairs(EliteRoster) do
-            if elite.level >= (pLvl - 7) and elite.level <= (pLvl + 4) and (elite.faction == "Any" or elite.faction == pFaction) then
-                local isUsed = false
-                if DarkPatronDB.CompletedElites then for _, completedId in ipairs(DarkPatronDB.CompletedElites) do if completedId == elite.id then isUsed = true break end end end
-                for _, active in pairs(DarkPatronDB.ActiveMissions) do if active.targetName == elite.name then isUsed = true break end end
-                for _, poolItem in pairs(DarkPatronDB.PoolOfSix) do if poolItem.targetName == elite.name then isUsed = true break end end
-                if DarkPatronDB.EliteBounties then for _, eliteItem in ipairs(DarkPatronDB.EliteBounties) do if eliteItem.targetName == elite.name then isUsed = true break end end end
-                
-                if not isUsed then table.insert(validElites, elite) if string.find(elite.zone, currentZone) then table.insert(localElites, elite) end end
+            if not EliteBlacklist[elite.name] then
+                if elite.level >= (pLvl - 7) and elite.level <= (pLvl + 4) and (elite.faction == "Any" or elite.faction == pFaction) then
+                    local isUsed = false
+                    if DarkPatronDB.CompletedElites then for _, completedId in ipairs(DarkPatronDB.CompletedElites) do if completedId == elite.id then isUsed = true break end end end
+                    for _, active in pairs(DarkPatronDB.ActiveMissions) do if active.targetName == elite.name then isUsed = true break end end
+                    for _, poolItem in pairs(DarkPatronDB.PoolOfSix) do if poolItem.targetName == elite.name then isUsed = true break end end
+                    if DarkPatronDB.EliteBounties then for _, eliteItem in ipairs(DarkPatronDB.EliteBounties) do if eliteItem.targetName == elite.name then isUsed = true break end end end
+                    
+                    if not isUsed then table.insert(validElites, elite) if string.find(elite.zone, currentZone) then table.insert(localElites, elite) end end
+                end
             end
         end
 
@@ -2532,6 +2654,14 @@ Ledger:SetScript("OnShow", function()
         local activeDung = dList[Ledger.CurrentDungeonIndex]
         ApplyCardTheme(DungeonCard, activeDung)
         DungeonCard.title:SetText(activeDung.baseTitle or activeDung.title); DungeonCard.desc:SetText(activeDung.desc); DungeonCard.reward:SetText(activeDung.rewardText)
+        
+        if activeDung.reqMinLvl and activeDung.reqMaxLvl then
+            DungeonCard.levelReq:SetText(string.format("Lvl %d - %d", activeDung.reqMinLvl, activeDung.reqMaxLvl))
+            DungeonCard.levelReq:Show()
+        else
+            DungeonCard.levelReq:Hide()
+        end
+
         if canEdit then DungeonCard.acceptBtn:Enable() else DungeonCard.acceptBtn:Disable() end
         
         local bR, bG, bB = DungeonCard:GetBackdropBorderColor()
@@ -3130,17 +3260,17 @@ local function CheckCombatProgress(event, ...)
         elseif subEvent == "SPELL_HEAL" or subEvent == "SPELL_PERIODIC_HEAL" then 
             spellSchool = select(14, CombatLogGetCurrentEventInfo()); amount = select(15, CombatLogGetCurrentEventInfo())
         elseif subEvent == "SWING_MISSED" then 
-			missType = select(12, CombatLogGetCurrentEventInfo())
-		elseif subEvent == "RANGE_MISSED" or subEvent == "SPELL_MISSED" then 
-			missType = select(15, CombatLogGetCurrentEventInfo())
+            missType = select(12, CombatLogGetCurrentEventInfo())
+        elseif subEvent == "RANGE_MISSED" or subEvent == "SPELL_MISSED" then 
+            missType = select(15, CombatLogGetCurrentEventInfo())
         elseif subEvent == "SPELL_AURA_APPLIED" then 
             spellName = select(13, CombatLogGetCurrentEventInfo())
         elseif subEvent == "ENVIRONMENTAL_DAMAGE" then 
             local envType, envAmount = select(12, CombatLogGetCurrentEventInfo()); if envType and type(envType) == "string" and string.upper(envType) == "FALLING" then amount = tonumber(envAmount) or 0 end 
         end
         
+        -- ACTIONS PERFORMED BY PLAYER
         if sourceGUID == UnitGUID("player") then
-            -- RESTRICTION AUDIT: Monitor for Abstinence Failures
             local dealtNature = false
             if spellSchool and bit.band(spellSchool, 8) > 0 then dealtNature = true end
             
@@ -3152,7 +3282,7 @@ local function CheckCombatProgress(event, ...)
             for i = #DarkPatronDB.ActiveMissions, 1, -1 do
                 local mission = DarkPatronDB.ActiveMissions[i]
                 
-                -- Hard Resets (Must be processed before increments!)
+                -- Hard Resets
                 if mission.trigger == "PURITY_KILL" and dealtShadow then
                     if mission.current > 0 then mission.current = 0; UpdateTracker() end
                 end
@@ -3165,7 +3295,6 @@ local function CheckCombatProgress(event, ...)
 
                 -- Normal Increments
                 if mission.trigger == "INTERRUPT_SPELL" and subEvent == "SPELL_INTERRUPT" then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
-                if mission.trigger == "GATHER_NODE" and subEvent == "SPELL_CAST_SUCCESS" then local sName = select(13, CombatLogGetCurrentEventInfo()); if sName == "Mining" or sName == "Herb Gathering" or sName == "Skinning" then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
                 if mission.trigger == "SPELL_CAST_SUCCESS" and subEvent == "SPELL_CAST_SUCCESS" then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
                 if mission.trigger == "AURA_APPLIED" and subEvent == "SPELL_AURA_APPLIED" then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
                 if mission.trigger == "CONSUME_FOOD" and subEvent == "SPELL_AURA_APPLIED" then if spellName == "Food" or spellName == "Drink" then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
@@ -3180,7 +3309,7 @@ local function CheckCombatProgress(event, ...)
                 if mission.trigger == "ANY_DAMAGE" and (subEvent == "SWING_DAMAGE" or subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE") then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
                 if mission.trigger == "PHYSICAL_DAMAGE" then if subEvent == "SWING_DAMAGE" or (spellSchool == 1 and (subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE")) then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
                 
-                -- Spell School Bitwise Magic
+                -- Spell School Magic
                 if mission.trigger == "FROST_DAMAGE" and (subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE" or subEvent == "SPELL_PERIODIC_DAMAGE") then if spellSchool and bit.band(spellSchool, 16) > 0 then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
                 if mission.trigger == "SHADOW_DAMAGE" and (subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE" or subEvent == "SPELL_PERIODIC_DAMAGE") then if spellSchool and bit.band(spellSchool, 32) > 0 then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
                 if mission.trigger == "NATURE_DAMAGE" and (subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE" or subEvent == "SPELL_PERIODIC_DAMAGE") then if spellSchool and bit.band(spellSchool, 8) > 0 then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
@@ -3194,39 +3323,71 @@ local function CheckCombatProgress(event, ...)
                 end
             end
 
+            -- KILL BOUNTIES (FILTERED BY XP)
             if subEvent == "PARTY_KILL" then
-                local destNpcID = 0
-                if destGUID then
-                    local _, _, _, _, _, idStr = strsplit("-", destGUID)
-                    if idStr then destNpcID = tonumber(idStr) or 0 end
+                local targetLvl = UnitLevel("target")
+                local awardsXp = true 
+                
+                if targetLvl and targetLvl > 0 then
+                    awardsXp = GivesExperience(targetLvl)
                 end
 
-                for i = #DarkPatronDB.ActiveMissions, 1, -1 do
-                    local mission = DarkPatronDB.ActiveMissions[i]
-                    if mission.trigger == "PARTY_KILL" then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
-                    elseif mission.trigger == "PURITY_KILL" then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
-                    elseif mission.trigger == "FLAWLESS_KILL" then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
-                    elseif mission.trigger == "WELL_FED_KILL" then 
-                        if IsWellFed() then 
-                            mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
+                if awardsXp then
+                    local destNpcID = 0
+                    if destGUID then
+                        local _, _, _, _, _, idStr = strsplit("-", destGUID)
+                        if idStr then destNpcID = tonumber(idStr) or 0 end
+                    end
+
+                    for i = #DarkPatronDB.ActiveMissions, 1, -1 do
+                        local mission = DarkPatronDB.ActiveMissions[i]
+                        if mission.trigger == "PARTY_KILL" then 
+                            mission.current = mission.current + 1
+                            if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                        elseif mission.trigger == "PURITY_KILL" then 
+                            mission.current = mission.current + 1
+                            if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                        elseif mission.trigger == "FLAWLESS_KILL" then 
+                            mission.current = mission.current + 1
+                            if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                        elseif mission.trigger == "WELL_FED_KILL" then 
+                            if IsWellFed() then 
+                                mission.current = mission.current + 1
+                                if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
+                            end
+                        elseif mission.trigger == "DUNGEON_BOSS_KILL" then 
+                            local _, _, _, _, _, _, _, currentInstanceID = GetInstanceInfo()
+                            if DungeonBossDB[destNpcID] and currentInstanceID == mission.targetInstanceID then 
+                                if IsGroupValidForDungeon(currentInstanceID) then
+                                    mission.current = mission.current + 1
+                                    if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
+                                else
+                                    print("|cffff0000[Dark Patron]: Boss kill invalidated! A group member is outside the required level range for this dungeon.|r")
+                                end
+                            end
+                        elseif mission.trigger == "HONORABLE_KILL" then 
+                            local isPlayer = bit.band(destFlags, COMBATLOG_OBJECT_CONTROL_PLAYER) > 0
+                            if isPlayer then 
+                                mission.current = mission.current + 1
+                                if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
+                            end
+                        elseif mission.trigger == "RISKY_KILL" then 
+                            local hpMax = UnitHealthMax("player")
+                            if hpMax and hpMax > 0 and (UnitHealth("player") / hpMax) <= 0.33 then 
+                                mission.current = mission.current + 1
+                                if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
+                            end
+                        elseif mission.trigger == "SPECIFIC_KILL" and destName == mission.targetName then 
+                            mission.current = mission.current + 1
+                            if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
                         end
-                    elseif mission.trigger == "DUNGEON_BOSS_KILL" then 
-                        local _, _, _, _, _, _, _, currentInstanceID = GetInstanceInfo()
-                        if DungeonBossDB[destNpcID] and currentInstanceID == mission.targetInstanceID then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
-                    elseif mission.trigger == "HONORABLE_KILL" then 
-                        local isPlayer = bit.band(destFlags, COMBATLOG_OBJECT_CONTROL_PLAYER) > 0
-                        if isPlayer then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
-                    elseif mission.trigger == "RISKY_KILL" then 
-                        local hpMax = UnitHealthMax("player")
-                        if hpMax and hpMax > 0 and (UnitHealth("player") / hpMax) <= 0.33 then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
-                    elseif mission.trigger == "SPECIFIC_KILL" and destName == mission.targetName then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
                     end
                 end
             end
-        end
+        end -- <--- THIS CLOSES "if sourceGUID == UnitGUID('player')"
 
+        -- ACTIONS SUFFERED BY PLAYER (INCOMING DAMAGE / DEFENSE)
         if destGUID == UnitGUID("player") then
-            -- RESTRICTION AUDIT: Flawless Kills (Took damage?)
             local tookDamage = (subEvent == "SWING_DAMAGE" or subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE" or subEvent == "SPELL_PERIODIC_DAMAGE" or subEvent == "ENVIRONMENTAL_DAMAGE")
             
             for i = #DarkPatronDB.ActiveMissions, 1, -1 do
@@ -3405,9 +3566,26 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
 
             for i = #DarkPatronDB.ActiveMissions, 1, -1 do
                 local mission = DarkPatronDB.ActiveMissions[i]
+                
+                -- CRAFTING
                 if mission.trigger == "CRAFT_ITEM" and mission.targetName then
                     if spellName == mission.targetName then
-                        mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                        mission.current = mission.current + 1
+                        if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                    end
+                    
+                -- GATHERING
+                elseif mission.trigger == "GATHER_NODE" then
+                    -- If the mission asks for a specific profession, enforce it!
+                    if mission.targetName and mission.targetName ~= "" then
+                        if spellName == mission.targetName then
+                            mission.current = mission.current + 1
+                            if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                        end
+                    -- Fallback for any old, vague contracts still sitting in your active ledger
+                    elseif spellName == "Mining" or spellName == "Herb Gathering" or spellName == "Skinning" then
+                        mission.current = mission.current + 1
+                        if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
                     end
                 end
             end
@@ -3441,9 +3619,12 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
 
         UpdateTracker(); DP_EvaluateBazaarAlert()
 	elseif event == "PLAYER_LEVEL_UP" then
-        local currentLevel = UnitLevel("player") or 1
-        print(string.format("|cffffd700[Dark Patron]: You have reached level %d. The Veil reveals new dungeon trials.|r", currentLevel))
+        local newLevel = arg1 or UnitLevel("player")
+        
         CheckLevelMilestoneDungeons()
+        
+        print(string.format("|cffffd700[Dark Patron]: You have reached level %d. The Veil reveals new dungeon trials.|r", newLevel))
+        
         if Ledger and Ledger:IsShown() then 
             Ledger:GetScript("OnShow")(Ledger) 
         end
