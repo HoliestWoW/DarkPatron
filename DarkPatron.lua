@@ -373,9 +373,9 @@ local ActionTemplates = {
     { trigger = "SWING_DAMAGE", baseDesc = "Land %s successful physical attacks.", baseGoal = 35, baseFavor = 1, reqMelee = true, patterns = { "The [Adj] Striker", "Striker of [Noun]" } },
     { trigger = "DAMAGE_TAKEN", baseDesc = "Survive taking %s total damage in combat.", baseGoal = 200, baseFavor = 1, isStat = true, patterns = { "The [Adj] Martyr", "Trial of the Martyr" } },
     { trigger = "ANY_DAMAGE", baseDesc = "Inflict %s total damage across all combat.", baseGoal = 350, baseFavor = 1, isStat = true, patterns = { "The [Adj] Annihilator", "Path of the Annihilator" } },
-    { trigger = "PARTY_KILL", baseDesc = "Strike the killing blow on %s hostile targets.", baseGoal = 15, baseFavor = 2, patterns = { "The [Adj] Executioner", "Decree of the Executioner" } },
+    { trigger = "PARTY_KILL", baseDesc = "Strike the killing blow on %s hostile targets.", baseGoal = 15, baseFavor = 1, patterns = { "The [Adj] Executioner", "Decree of the Executioner" } },
     { trigger = "DEFENSE_ROLL", baseDesc = "Parry, Dodge, or Block %s incoming attacks.", baseGoal = 15, baseFavor = 1, reqDefense = true, patterns = { "The [Adj] Bulwark", "Trial of the Bulwark" } },
-    { trigger = "INTERRUPT_SPELL", baseDesc = "Successfully interrupt enemy spellcasts %s times.", baseGoal = 5, baseFavor = 2, reqInterrupt = true, patterns = { "The [Adj] Silencer", "Vow of the Silencer" } },
+    { trigger = "INTERRUPT_SPELL", baseDesc = "Successfully interrupt enemy spellcasts %s times.", baseGoal = 5, baseFavor = 1, reqInterrupt = true, patterns = { "The [Adj] Silencer", "Vow of the Silencer" } },
     { trigger = "UNARMED_DAMAGE", baseDesc = "Land %s successful unarmed melee attacks.", baseGoal = 20, baseFavor = 2, reqMelee = true, patterns = { "The [Adj] Brawler", "Fists of [Noun]" } },
     { trigger = "NAKED_COMBAT", baseDesc = "Land %s attacks while wearing no chest armor.", baseGoal = 20, baseFavor = 2, patterns = { "The [Adj] Exhibitionist", "Pride of the Foolish" } },
 
@@ -404,8 +404,31 @@ local ActionTemplates = {
 	-- Tradeskill & Hobby
     { trigger = "FISH_CATCH", baseDesc = "Successfully catch %s items from the waters of Azeroth.", baseGoal = 25, baseFavor = 2, reqFishing = true, patterns = { "The [Adj] Angler", "Bounty of the Depths" } },
     { trigger = "CRAFT_ITEM", baseDesc = "Craft, forge, or cook %s items using your professions.", baseGoal = 20, baseFavor = 2, patterns = { "The [Adj] Artisan", "Master of the Forge" } },
-	{ trigger = "WELL_FED_KILL", baseDesc = "Strike the killing blow on %s targets while maintaining the Well Fed buff.", baseGoal = 15, baseFavor = 2, patterns = { "The [Adj] Banquet", "Glutton's [Noun]" } },
-    { trigger = "ENCHANTED_SWING", baseDesc = "Land %s melee attacks while your weapon is temporarily enhanced (Stones/Poisons/Imbues).", baseGoal = 50, baseFavor = 2, reqMelee = true, patterns = { "The [Adj] Edge", "Blade of [Noun]" } },
+	{ trigger = "WELL_FED_KILL", baseDesc = "Strike the killing blow on %s targets while maintaining the Well Fed buff.", baseGoal = 15, baseFavor = 1, patterns = { "The [Adj] Banquet", "Glutton's [Noun]" } },
+    { trigger = "ENCHANTED_SWING", baseDesc = "Land %s melee attacks while your weapon is temporarily enhanced (Stones/Poisons/Imbues).", baseGoal = 50, baseFavor = 1, reqMelee = true, patterns = { "The [Adj] Edge", "Blade of [Noun]" } },
+	
+	-- The Bestiary (Typed Hunting)
+    { trigger = "TYPED_KILL", targetName = "Undead", baseDesc = "Purge %s Undead creatures.", baseGoal = 15, baseFavor = 1, patterns = { "The Gravewalker", "Rest for the Wicked" } },
+    { trigger = "TYPED_KILL", targetName = "Beast", baseDesc = "Hunt down %s wild Beasts.", baseGoal = 20, baseFavor = 1, patterns = { "The Apex Predator", "Culling the Wild" } },
+    { trigger = "TYPED_KILL", targetName = "Demon", baseDesc = "Banish %s Demons back to the nether.", baseGoal = 10, baseFavor = 2, patterns = { "The Exorcist", "Contract: The Nether" } },
+    { trigger = "TYPED_KILL", targetName = "Humanoid", baseDesc = "Execute %s Humanoids.", baseGoal = 15, baseFavor = 1, patterns = { "The Mercenary", "A Bounty of Blood" } },
+    { trigger = "TYPED_KILL", targetName = "Elemental", baseDesc = "Shatter %s Elementals.", baseGoal = 10, baseFavor = 2, patterns = { "The Stormbreaker", "Dust to Dust" } },
+    
+    -- Vulnerability & Deprivation
+    { trigger = "NO_BUFF_KILL", baseDesc = "Strike the killing blow on %s targets while having ZERO helpful buffs or auras active.", baseGoal = 10, baseFavor = 2, patterns = { "The [Adj] Null", "Mortal Frailty" } },
+    { trigger = "DEBUFFED_KILL", baseDesc = "Strike the killing blow on %s targets while YOU are suffering from a poison, disease, curse, or bleed.", baseGoal = 5, baseFavor = 3, patterns = { "The [Adj] Masochist", "Blood for Blood" } },
+    { trigger = "GRAY_WEAPON_KILL", baseDesc = "Strike the killing blow on %s targets while wielding only a Poor (Gray) or Common (White) weapon.", baseGoal = 15, baseFavor = 2, reqMelee = true, patterns = { "The Peasant's Ire", "Iron & Rust" } },
+    
+    -- Utility & Control
+    { trigger = "CROWD_CONTROL", baseDesc = "Successfully incapacitate %s enemies (Polymorph, Sap, Trap, Fear, etc).", baseGoal = 15, baseFavor = 1, patterns = { "The [Adj] Warden", "Chains of the Patron" } },
+    { trigger = "DISPEL_PURGE", baseDesc = "Successfully Dispel, Purge, or Cleanse %s auras.", baseGoal = 10, baseFavor = 2, patterns = { "The [Adj] Inquisitor", "Rite of Cleansing" } },
+    { trigger = "MOB_DRAIN", baseDesc = "Successfully drain or siphon %s Health or Mana from enemies.", baseGoal = 500, baseFavor = 2, isStat = true, reqShadow = true, patterns = { "The [Adj] Leech", "Hunger of the Void" } },
+    
+    -- Environmental & Sadism
+    { trigger = "DROWNING_SURVIVAL", baseDesc = "Hold your breath until you take drowning damage, then survive, %s times.", baseGoal = 2, baseFavor = 2, patterns = { "The [Adj] Lungs", "Kiss of the Depths" } },
+    { trigger = "EXPLORE_ZONES", baseDesc = "Discover %s new map areas or sub-zones.", baseGoal = 5, baseFavor = 2, patterns = { "The [Adj] Nomad", "Mapping the Abyss" } },
+    { trigger = "CRITTER_SLAUGHTER", baseDesc = "Ruthlessly slaughter %s harmless critters (Level 1).", baseGoal = 50, baseFavor = 1, patterns = { "The [Adj] Monster", "Pest Control" } },
+    { trigger = "OVERKILL_STRIKE", baseDesc = "Deliver a single, devastating strike that deals %s or more damage at once.", baseGoal = 150, baseFavor = 2, isStat = true, patterns = { "The [Adj] Hammer", "Shattering Force" } },
     
     -- Elites & PvP
     { trigger = "RISKY_KILL", baseDesc = "Strike the killing blow on %s enemies while below 33%% health.", baseGoal = 3, baseFavor = 2, patterns = { "The [Adj] Survivor", "Dance with [Noun]" } },
@@ -746,17 +769,16 @@ local function GenerateProceduralContract(allowRare)
     local finalGoal = template.baseGoal
     if not template.isLegendary then
         if template.isStat then
-            -- Exponential scaling for Damage/Health/Money (~80x multiplier at lvl 60)
             local statScale = 1 + ((pLvl * pLvl) * 0.022)
             finalGoal = math.floor(template.baseGoal * statScale)
         else
-            -- Gentle linear scaling for kills/items (3.4x multiplier at lvl 60)
             local countScale = 1 + (pLvl * 0.04)
             finalGoal = math.floor(template.baseGoal * countScale)
         end
     end
     
     local targetNameStr = ""
+    local displayNameStr = "" -- NEW: Decouples the UI text from the API spell
     local targetZoneStr = ""
     local expectedMinSkill = math.max(1, (pLvl * 5) - 50)
 	local customDesc = nil
@@ -773,6 +795,14 @@ local function GenerateProceduralContract(allowRare)
         end
         local chosenItem = (#validItems > 0) and validItems[math.random(#validItems)] or TradeGoodsDB[1]
         targetNameStr = chosenItem.name
+        
+        -- FIX: Smart Pluralization for Fetch Quests
+        displayNameStr = chosenItem.outputName or targetNameStr
+        if not chosenItem.outputName then
+            if string.match(displayNameStr, "Bar$") or string.match(displayNameStr, "Ore$") or string.match(displayNameStr, "Stone$") or string.match(displayNameStr, "Potion$") or string.match(displayNameStr, "Elixir$") then
+                displayNameStr = displayNameStr .. "s"
+            end
+        end
         
     elseif template.trigger == "GATHER_NODE" then
         local validGathers = {}
@@ -812,6 +842,28 @@ local function GenerateProceduralContract(allowRare)
         finalGoal = math.floor(itemBaseGoal * countScale)
         
         local verb = chosenItem.verb or "Craft"
+        
+        -- FIX: Smart Grammar Parsing for Professions
+        displayNameStr = chosenItem.outputName or targetNameStr
+        if not chosenItem.outputName then
+            -- Safely remove the verb if it exists at the start of the item name (e.g. "Smelt Copper" -> "Copper")
+            local verbPattern = "^" .. string.lower(verb) .. "%s*"
+            local startIdx, endIdx = string.find(string.lower(displayNameStr), verbPattern)
+            if startIdx then
+                displayNameStr = string.sub(displayNameStr, endIdx + 1)
+            end
+            
+            -- Auto-append "Bars" if it's a Smelting action
+            if string.lower(verb) == "smelt" and not string.find(string.lower(displayNameStr), "bar") then
+                displayNameStr = displayNameStr .. " Bars"
+            end
+            
+            -- Auto-pluralize forged items or alchemy
+            if string.match(displayNameStr, "Potion$") or string.match(displayNameStr, "Elixir$") or string.match(displayNameStr, "Flask$") or string.match(displayNameStr, "Stone$") then
+                displayNameStr = displayNameStr .. "s"
+            end
+        end
+        
         customDesc = verb .. " %s %s."
         
     elseif template.trigger == "DUNGEON_CLEAR" then
@@ -830,7 +882,6 @@ local function GenerateProceduralContract(allowRare)
     local timeLimit = 0
     if isTimed then timeLimit = math.random(15, 30) * 60 end
     
-    -- FIX: Determine Rarity and process the 1.25x multiplier BEFORE formatting text!
     local favorPayout = template.baseFavor + math.floor(pLvl / 20)
     local rarity = "Standard"
     local baseRewardText = ""
@@ -847,7 +898,6 @@ local function GenerateProceduralContract(allowRare)
         baseRewardText = string.format("Reward: +%d Dark Favor", favorPayout)
     end
     
-    -- NOW format the strings using the finalized variables
     local patternIdx = (GetDeterministicHash(template.trigger, finalGoal, "Pattern") % #template.patterns) + 1
     local adjIdx = (GetDeterministicHash(template.trigger, finalGoal, "Adj") % #Adjectives) + 1
     local nounIdx = (GetDeterministicHash(template.trigger, finalGoal, "Noun") % #Nouns) + 1
@@ -859,8 +909,12 @@ local function GenerateProceduralContract(allowRare)
     local formattedGoal = DP_FormatNumber(finalGoal)
     local finalDesc = ""
     
-    if targetNameStr ~= "" then 
-        finalDesc = string.format(baseFormat, formattedGoal, targetNameStr) 
+    -- FIX: Count the number of string placeholders in the template to avoid sloppy argument passing
+    local numStringTokens = select(2, string.gsub(baseFormat, "%%s", ""))
+    
+    if numStringTokens == 2 and targetNameStr ~= "" then 
+        local finalName = (displayNameStr ~= nil and displayNameStr ~= "") and displayNameStr or targetNameStr
+        finalDesc = string.format(baseFormat, formattedGoal, finalName) 
     else 
         finalDesc = string.format(baseFormat, formattedGoal) 
     end
@@ -905,9 +959,9 @@ local function GenerateAllDungeonContracts(pLvl)
             end
             
             table.insert(validContracts, { 
-                id = GetDeterministicHash("DUNGEON_CLEAR", bossGoal, dungeon.name .. GetTime()), 
-                title = "Purge of " .. dungeon.name, -- Reverted to clean title
-                desc = dynamicDesc, 
+                id = "DUNGEON_" .. dungeon.instanceID,
+                title = "Purge of " .. dungeon.name, 
+                desc = dynamicDesc,
                 rarity = "Elite", 
                 rewardText = rewardStr, 
                 favor = favorPayout, 
@@ -950,7 +1004,7 @@ local function GenerateAllRaidContracts(pLvl)
             end
             
             table.insert(validContracts, { 
-                id = GetDeterministicHash("RAID_CLEAR", raid.bossGoal, raid.name .. GetTime()), 
+                id = "RAID_" .. raid.instanceID,
                 title = "The Apex Hunt: " .. raid.name, 
                 desc = dynamicDesc, 
                 rarity = "Rare Elite", 
@@ -976,6 +1030,7 @@ local function CheckLevelMilestoneDungeons()
     if not DarkPatronDB then return end
     local pLvl = UnitLevel("player") or 1
     local pFaction = UnitFactionGroup("player")
+    local guid = UnitGUID("player") or "Unknown"
     
     DarkPatronDB.DungeonBounties = DarkPatronDB.DungeonBounties or {}
     
@@ -1012,7 +1067,6 @@ local function CheckLevelMilestoneDungeons()
                 end
             end
             
-            -- Check if they already pulled it into their Active Pacts
             if not isDuplicate and DarkPatronDB.ActiveMissions then
                 for _, active in ipairs(DarkPatronDB.ActiveMissions) do
                     if active.trigger == "DUNGEON_BOSS_KILL" and active.targetInstanceID == newContract.targetInstanceID then
@@ -1022,7 +1076,16 @@ local function CheckLevelMilestoneDungeons()
                 end
             end
             
-            -- If it's truly new, inject it!
+            if not isDuplicate and DarkPatronDB.CompletedElites then
+                local expectedId = newContract.id .. "-" .. guid
+                for _, completedId in ipairs(DarkPatronDB.CompletedElites) do
+                    if completedId == newContract.id or completedId == expectedId then
+                        isDuplicate = true
+                        break
+                    end
+                end
+            end
+            
             if not isDuplicate then
                 table.insert(DarkPatronDB.DungeonBounties, newContract)
                 addedNew = true
@@ -1384,6 +1447,7 @@ for i = 1, 4 do
     row:SetPoint("TOPRIGHT", rowBtn, "TOPRIGHT", -5, 0)
     row:SetJustifyH("LEFT")
     row:SetJustifyV("TOP")
+	row:SetWordWrap(true)
     
     local function ToggleCollapse()
         DarkPatronDB.CollapsedPacts = DarkPatronDB.CollapsedPacts or {}
@@ -1429,6 +1493,7 @@ UpdateTracker = function()
 
     for i = 1, 4 do
         if i <= maxSlots then
+			Tracker.RowButtons[i]:SetWidth(Tracker:GetWidth() - 30)
             Tracker.RowButtons[i]:SetPoint("TOPLEFT", 15, currentY)
             local m = DarkPatronDB.ActiveMissions[i]
             if m then
@@ -1775,6 +1840,43 @@ local function GenerateChroniclePages()
         p2 = p2 .. string.format("Ambition has its costs on the road. They turned away from the Patron's demands %d times, paying the heavy blood tax of Favor to survive their own miscalculations.\n\n", fails)
     elseif fails >= 5 then 
         p2 = p2 .. string.format("Their overreach constantly threatened to undo them. With %d fractured pacts, they bled Favor endlessly just to keep the Patron's wrath at bay.\n\n", fails) 
+    end
+	
+    local conqueredInstances = {}
+    if DarkPatronDB.CompletedElites then
+        for _, eliteId in ipairs(DarkPatronDB.CompletedElites) do
+            if type(eliteId) == "string" then
+                if eliteId:find("^DUNGEON_") then
+                    local instanceID = tonumber(eliteId:match("^DUNGEON_(%d+)"))
+                    for _, d in ipairs(DungeonDB) do
+                        if d.instanceID == instanceID then table.insert(conqueredInstances, d.name) break end
+                    end
+                elseif eliteId:find("^RAID_") then
+                    local instanceID = tonumber(eliteId:match("^RAID_(%d+)"))
+                    for _, r in ipairs(RaidDB) do
+                        if r.instanceID == instanceID then table.insert(conqueredInstances, r.name) break end
+                    end
+                end
+            end
+        end
+    end
+
+    if #conqueredInstances > 0 then
+        local dungeonText = "The depths of the world hold no terror for them. They have systematically purged the most dangerous strongholds in the realm, leaving only silence in the halls of "
+        if #conqueredInstances == 1 then
+            dungeonText = dungeonText .. conqueredInstances[1] .. ".\n\n"
+        elseif #conqueredInstances == 2 then
+            dungeonText = dungeonText .. conqueredInstances[1] .. " and " .. conqueredInstances[2] .. ".\n\n"
+        else
+            for i = 1, #conqueredInstances do
+                if i == #conqueredInstances then
+                    dungeonText = dungeonText .. "and " .. conqueredInstances[i] .. ".\n\n"
+                else
+                    dungeonText = dungeonText .. conqueredInstances[i] .. ", "
+                end
+            end
+        end
+        p2 = p2 .. dungeonText
     end
 
     -- Industrial / Gathering check
@@ -2537,7 +2639,15 @@ CreateStoreCard(false, 5, "The Blood Contract", "Trade 50 Favor to hunt a level-
             if not EliteBlacklist[elite.name] then
                 if elite.level >= (pLvl - 7) and elite.level <= (pLvl + 4) and (elite.faction == "Any" or elite.faction == pFaction) then
                     local isUsed = false
-                    if DarkPatronDB.CompletedElites then for _, completedId in ipairs(DarkPatronDB.CompletedElites) do if completedId == elite.id then isUsed = true break end end end
+                    local guid = UnitGUID("player") or "Unknown"
+                    if DarkPatronDB.CompletedElites then 
+                        for _, completedId in ipairs(DarkPatronDB.CompletedElites) do 
+                            if completedId == elite.id or completedId == (elite.id .. "-" .. guid) then 
+                                isUsed = true 
+                                break 
+                            end 
+                        end 
+                    end
                     for _, active in pairs(DarkPatronDB.ActiveMissions) do if active.targetName == elite.name then isUsed = true break end end
                     for _, poolItem in pairs(DarkPatronDB.PoolOfSix) do if poolItem.targetName == elite.name then isUsed = true break end end
                     if DarkPatronDB.EliteBounties then for _, eliteItem in ipairs(DarkPatronDB.EliteBounties) do if eliteItem.targetName == elite.name then isUsed = true break end end end
@@ -2844,9 +2954,7 @@ SlashCmdList["DARKPATRON"] = function(msg)
         local _, target, messageText = strsplit(" ", msg, 3)
         if target and messageText then
             SendChatMessage(messageText, "WHISPER", nil, target)
-            
             C_ChatInfo.SendAddonMessage("DP_JUSTICE", "GM_WHISPER:" .. messageText, "WHISPER", target)
-            
             print(string.format("|cff00ccff[Developer Outbox]|r to %s: %s", target, messageText))
         else
             print("|cff00ccff[Developer Outbox]|r: Syntax Error. Use: /patron tell <PlayerName> <message>")
@@ -2861,6 +2969,25 @@ SlashCmdList["DARKPATRON"] = function(msg)
             end
         else
             print("|cff00ccff[Dark Patron]|r: Syntax Error. Use: /patron reply <your message>")
+        end
+        
+    -- === NEW: DEV FORCE COMPLETE COMMAND ===
+    elseif msg:match("^complete") then
+        if not devMode then
+            print("|cffff0000[Dark Patron]: You must have devMode = true at the top of the file to use this.|r")
+            return
+        end
+        
+        if DarkPatronDB.ActiveMissions and #DarkPatronDB.ActiveMissions > 0 then
+            -- Grab the pact in Slot 1
+            local mission = DarkPatronDB.ActiveMissions[1]
+            -- Fake the progress to max
+            mission.current = mission.goal
+            -- Trigger the full cinematic reward and backfill cycle!
+            FulfillMission(1, mission)
+            print("|cff00ccff[Developer Mode]|r: Force-completed active pact in Slot 1.")
+        else
+            print("|cff00ccff[Developer Mode]|r: No active pacts to complete.")
         end
         
     elseif Ledger:IsShown() then 
@@ -3009,7 +3136,8 @@ end
 RecordCompletedPact = function(mission)
     if mission.rarity == "Elite" or mission.rarity == "Rare Elite" or mission.rarity == "Boss" then
         DarkPatronDB.CompletedElites = DarkPatronDB.CompletedElites or {}
-        table.insert(DarkPatronDB.CompletedElites, mission.id)
+        local guid = UnitGUID("player") or "Unknown"
+        table.insert(DarkPatronDB.CompletedElites, mission.id .. "-" .. guid)
     else
         DarkPatronDB.RecentlyCompleted = DarkPatronDB.RecentlyCompleted or {}
         table.insert(DarkPatronDB.RecentlyCompleted, 1, mission.trigger .. (mission.targetName or ""))
@@ -3157,7 +3285,7 @@ local function FulfillMission(index, mission)
     DarkPatronDB.ContractTypesCompleted = DarkPatronDB.ContractTypesCompleted or {}
     DarkPatronDB.ContractTypesCompleted[mission.trigger] = (DarkPatronDB.ContractTypesCompleted[mission.trigger] or 0) + 1
 
-    if (mission.rarity == "Elite" or mission.rarity == "Rare Elite" or mission.rarity == "Boss") then
+    if (mission.rarity == "Elite" or mission.rarity == "Rare Elite" or mission.rarity == "Boss") and mission.trigger ~= "DUNGEON_BOSS_KILL" then
         if not DarkPatronDB.FirstEliteKilled then DarkPatronDB.FirstEliteKilled = mission.targetName or "a nameless terror" end
     end
     
@@ -3247,6 +3375,16 @@ local function CheckCombatProgress(event, ...)
                 end 
             end
         end
+        
+        if msg:find("Discovered .*") or msg:find("discovered .*") then
+            for i = #DarkPatronDB.ActiveMissions, 1, -1 do
+                local mission = DarkPatronDB.ActiveMissions[i]
+                if mission.trigger == "EXPLORE_ZONES" then
+                    mission.current = mission.current + 1
+                    if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                end
+            end
+        end
     end
 
     if event == "CHAT_MSG_MONEY" then
@@ -3308,6 +3446,45 @@ local function CheckCombatProgress(event, ...)
         end
         
         if sourceGUID == UnitGUID("player") or sourceGUID == UnitGUID("pet") then
+        
+            -- NEW: Overkill & Drain Tracking
+            if amount and amount > 0 then
+                for i = #DarkPatronDB.ActiveMissions, 1, -1 do
+                    local mission = DarkPatronDB.ActiveMissions[i]
+                    if mission.trigger == "OVERKILL_STRIKE" and amount >= mission.goal then
+                        mission.current = mission.goal
+                        FulfillMission(i, mission)
+                    elseif mission.trigger == "MOB_DRAIN" and (spellName == "Drain Life" or spellName == "Drain Soul" or spellName == "Mana Burn" or spellName == "Siphon Life") then
+                        mission.current = mission.current + amount
+                        if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                    end
+                end
+            end
+
+            -- NEW: Crowd Control & Purges
+            if subEvent == "SPELL_AURA_APPLIED" then
+                local ccSpells = { ["Polymorph"]=true, ["Sap"]=true, ["Freezing Trap"]=true, ["Fear"]=true, ["Shackle Undead"]=true, ["Gouge"]=true, ["Hibernate"]=true, ["Blind"]=true, ["Psychic Scream"]=true, ["Howl of Terror"]=true }
+                if ccSpells[spellName] then
+                    for i = #DarkPatronDB.ActiveMissions, 1, -1 do
+                        local mission = DarkPatronDB.ActiveMissions[i]
+                        if mission.trigger == "CROWD_CONTROL" then
+                            mission.current = mission.current + 1
+                            if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                        end
+                    end
+                end
+            end
+
+            if subEvent == "SPELL_DISPEL" or subEvent == "SPELL_STOLEN" or subEvent == "SPELL_DISPEL_FAILED" then
+                for i = #DarkPatronDB.ActiveMissions, 1, -1 do
+                    local mission = DarkPatronDB.ActiveMissions[i]
+                    if mission.trigger == "DISPEL_PURGE" then
+                        mission.current = mission.current + 1
+                        if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                    end
+                end
+            end
+            
             local dealtNature = false
             if spellSchool and bit.band(spellSchool, 8) > 0 then dealtNature = true end
             
@@ -3359,69 +3536,132 @@ local function CheckCombatProgress(event, ...)
                     if isCrit then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
                 end
             end
+        end
 
-            -- KILL BOUNTIES (FILTERED BY XP)
-            if subEvent == "PARTY_KILL" then
-                local targetLvl = UnitLevel("target")
-                local awardsXp = true 
-                
-                if targetLvl and targetLvl > 0 then
-                    awardsXp = GivesExperience(targetLvl)
-                end
+        -- ==========================================
+        -- KILL BOUNTIES (BULLETPROOF BOSS & XP KILLS)
+        -- ==========================================
+        local destNpcID = 0
+        if destGUID then
+            local _, _, _, _, _, idStr = strsplit("-", destGUID)
+            if idStr then destNpcID = tonumber(idStr) or 0 end
+        end
 
-                if awardsXp then
-                    local destNpcID = 0
-                    if destGUID then
-                        local _, _, _, _, _, idStr = strsplit("-", destGUID)
-                        if idStr then destNpcID = tonumber(idStr) or 0 end
+        if subEvent == "UNIT_DIED" and DungeonBossDB[destNpcID] then
+            local currentZoneName = GetInstanceInfo()
+            
+            for i = #DarkPatronDB.ActiveMissions, 1, -1 do
+                local mission = DarkPatronDB.ActiveMissions[i]
+                if mission.trigger == "DUNGEON_BOSS_KILL" then 
+                    local isCorrectZone = false
+                    if currentZoneName and currentZoneName ~= "" and mission.targetName then
+                        if string.find(mission.targetName, currentZoneName, 1, true) or string.find(currentZoneName, mission.targetName, 1, true) then
+                            isCorrectZone = true
+                        end
+                        if string.find(currentZoneName, "Atal'Hakkar") and string.find(mission.targetName, "Atal'Hakkar") then
+                            isCorrectZone = true
+                        end
                     end
 
-                    for i = #DarkPatronDB.ActiveMissions, 1, -1 do
-                        local mission = DarkPatronDB.ActiveMissions[i]
-                        if mission.trigger == "PARTY_KILL" then 
-                            mission.current = mission.current + 1
-                            if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
-                        elseif mission.trigger == "PURITY_KILL" or mission.trigger == "PURITY_KILL_NATURE" then 
-                            mission.current = mission.current + 1
-                            if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
-                        elseif mission.trigger == "FLAWLESS_KILL" then
-                            mission.current = mission.current + 1
-                            if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
-                        elseif mission.trigger == "WELL_FED_KILL" then 
-                            if IsWellFed() then 
-                                mission.current = mission.current + 1
-                                if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
-                            end
-                        elseif mission.trigger == "DUNGEON_BOSS_KILL" then 
-                            local _, _, _, _, _, _, _, currentInstanceID = GetInstanceInfo()
-                            if DungeonBossDB[destNpcID] and currentInstanceID == mission.targetInstanceID then 
-                                if IsGroupValidForDungeon(currentInstanceID) then
-                                    mission.current = mission.current + 1
-                                    if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
-                                else
-                                    print("|cffff0000[Dark Patron]: Boss kill invalidated! A group member is outside the required level range for this dungeon.|r")
-                                end
-                            end
-                        elseif mission.trigger == "HONORABLE_KILL" then 
-                            local isPlayer = bit.band(destFlags, COMBATLOG_OBJECT_CONTROL_PLAYER) > 0
-                            if isPlayer then 
-                                mission.current = mission.current + 1
-                                if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
-                            end
-                        elseif mission.trigger == "RISKY_KILL" then 
-                            local hpMax = UnitHealthMax("player")
-                            if hpMax and hpMax > 0 and (UnitHealth("player") / hpMax) <= 0.33 then 
-                                mission.current = mission.current + 1
-                                if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
-                            end
-                        elseif mission.trigger == "SPECIFIC_KILL" and destName == mission.targetName then 
+                    if isCorrectZone then
+                        if devMode or IsGroupValidForDungeon(mission.targetInstanceID) then
                             mission.current = mission.current + 1
                             if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
+                        else
+                            print("|cffff0000[Dark Patron]: Boss kill invalidated! Group level restriction failed.|r")
                         end
                     end
                 end
             end
-        end -- <--- THIS CLOSES "if sourceGUID == UnitGUID('player')"
+        end
+
+        -- 2. STANDARD KILLS (Filtered by XP, uses PARTY_KILL)
+        if subEvent == "PARTY_KILL" then
+            local targetLvl = UnitLevel("target")
+            local awardsXp = true 
+            
+            if targetLvl and targetLvl > 0 and not devMode then
+                awardsXp = GivesExperience(targetLvl)
+            end
+
+            if awardsXp then
+                -- Build contextual flags for this exact kill
+                local creatureType = UnitCreatureType("target") or ""
+                local hasBuffs = false
+                local hasDebuffs = false
+                for b = 1, 40 do if UnitAura("player", b, "HELPFUL") then hasBuffs = true break end end
+                for b = 1, 40 do if UnitAura("player", b, "HARMFUL") then hasDebuffs = true break end end
+                
+                local isGrayWep = false
+                local mhLink = GetInventoryItemLink("player", 16)
+                if mhLink then
+                    local _, _, quality = GetItemInfo(mhLink)
+                    if quality == 0 or quality == 1 then isGrayWep = true end
+                else
+                    isGrayWep = true -- Unarmed counts as poor weapon
+                end
+                
+                for i = #DarkPatronDB.ActiveMissions, 1, -1 do
+                    local mission = DarkPatronDB.ActiveMissions[i]
+                    if mission.trigger == "PARTY_KILL" then 
+                        mission.current = mission.current + 1
+                        if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                    -- NEW TRACKERS
+                    elseif mission.trigger == "TYPED_KILL" and creatureType == mission.targetName then
+                        mission.current = mission.current + 1
+                        if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                    elseif mission.trigger == "NO_BUFF_KILL" and not hasBuffs then
+                        mission.current = mission.current + 1
+                        if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                    elseif mission.trigger == "DEBUFFED_KILL" and hasDebuffs then
+                        mission.current = mission.current + 1
+                        if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                    elseif mission.trigger == "GRAY_WEAPON_KILL" and isGrayWep then
+                        mission.current = mission.current + 1
+                        if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                    -- END NEW TRACKERS
+                    elseif mission.trigger == "PURITY_KILL" or mission.trigger == "PURITY_KILL_NATURE" then 
+                        mission.current = mission.current + 1
+                        if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                    elseif mission.trigger == "FLAWLESS_KILL" then
+                        mission.current = mission.current + 1
+                        if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                    elseif mission.trigger == "WELL_FED_KILL" then 
+                        if IsWellFed() then 
+                            mission.current = mission.current + 1
+                            if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
+                        end
+                    elseif mission.trigger == "HONORABLE_KILL" then 
+                        local isPlayer = bit.band(destFlags, COMBATLOG_OBJECT_CONTROL_PLAYER) > 0
+                        if isPlayer then 
+                            mission.current = mission.current + 1
+                            if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
+                        end
+                    elseif mission.trigger == "RISKY_KILL" then 
+                        local hpMax = UnitHealthMax("player")
+                        if hpMax and hpMax > 0 and (UnitHealth("player") / hpMax) <= 0.33 then 
+                            mission.current = mission.current + 1
+                            if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
+                        end
+                    elseif mission.trigger == "SPECIFIC_KILL" and destName == mission.targetName then 
+                        mission.current = mission.current + 1
+                        if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
+                    end
+                end
+            else
+                -- If the kill DOES NOT award XP (Critters)
+                local tLevel = UnitLevel("target")
+                if tLevel and tLevel == 1 then
+                    for i = #DarkPatronDB.ActiveMissions, 1, -1 do
+                        local mission = DarkPatronDB.ActiveMissions[i]
+                        if mission.trigger == "CRITTER_SLAUGHTER" then
+                            mission.current = mission.current + 1
+                            if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                        end
+                    end
+                end
+            end
+        end
 
         -- ACTIONS SUFFERED BY PLAYER (INCOMING DAMAGE / DEFENSE)
         if destGUID == UnitGUID("player") then
@@ -3440,6 +3680,13 @@ local function CheckCombatProgress(event, ...)
                 if mission.trigger == "FALLING_DAMAGE" and subEvent == "ENVIRONMENTAL_DAMAGE" and amount > 0 then mission.current = mission.current + amount; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
                 if mission.trigger == "DAMAGE_TAKEN" and subEvent:find("DAMAGE") then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
                 if mission.trigger == "HEALING_RECEIVED" and (subEvent == "SPELL_HEAL" or subEvent == "SPELL_PERIODIC_HEAL") then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
+                if mission.trigger == "DROWNING_SURVIVAL" and subEvent == "ENVIRONMENTAL_DAMAGE" then 
+                    local envType = select(12, CombatLogGetCurrentEventInfo())
+                    if envType and type(envType) == "string" and string.upper(envType) == "DROWNING" then 
+                        mission.current = mission.current + 1; 
+                        if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
+                    end 
+                end
                 if (subEvent == "SWING_MISSED" or subEvent == "RANGE_MISSED" or subEvent == "SPELL_MISSED") then
                     if mission.trigger == "DEFENSE_ROLL" and (missType == "PARRY" or missType == "DODGE" or missType == "BLOCK") then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
                     elseif mission.trigger == "DODGE_ATTACK" and missType == "DODGE" then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
