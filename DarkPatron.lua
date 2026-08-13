@@ -453,6 +453,9 @@ local ActionTemplates = {
 }
 
 local function GetActivePurityVow()
+    if type(_G.Purity_GetActiveChallengeID) == "function" then
+        return _G.Purity_GetActiveChallengeID()
+    end
     if Purity_PerCharacterDB and Purity_PerCharacterDB.isOptedIn then
         return Purity_PerCharacterDB.activeChallengeID
     end
