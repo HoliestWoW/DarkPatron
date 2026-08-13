@@ -452,6 +452,35 @@ local ActionTemplates = {
     }
 }
 
+local function GetActivePurityVow()
+    if Purity_PerCharacterDB and Purity_PerCharacterDB.isOptedIn then
+        return Purity_PerCharacterDB.activeChallengeID
+    end
+    return nil
+end
+
+local PurityIntegration = {
+    ["BLOOD_MAGE_BARGAIN"] = {
+        { trigger = "BLOOD_SACRIFICE", baseDesc = "Expend %s of your own Blood to fuel your heavy abilities.", baseGoal = 1500, baseFavor = 1, isStat = true, patterns = { "The Crimson Toll", "Price of the Bargain" } },
+        { trigger = "WEAKENED_KILL", baseDesc = "Execute %s enemies while suffering from Sanguine Weakness.", baseGoal = 10, baseFavor = 2, patterns = { "The Fragile Edge", "Power in Frailty" } }
+    },
+    ["GLASS_HEART"] = {
+        { trigger = "SHATTERED_SURVIVAL", baseDesc = "Survive taking %s structural damage bleeding through your shields.", baseGoal = 2000, baseFavor = 2, isStat = true, reqAbsorb = true, patterns = { "The Shattered Aegis", "Brittle Bones" } }
+    },
+    ["DRUNK"] = {
+        { trigger = "DRUNKEN_BRAWL", baseDesc = "Strike the killing blow on %s enemies while Completely Smashed.", baseGoal = 15, baseFavor = 1, patterns = { "The Tavern Brawler", "Liquid Courage" } }
+    },
+    ["Conduit of Purity"] = { 
+        { trigger = "STATIC_DISCHARGE", baseDesc = "Successfully cast spells while maintaining maximum (100) Static Charge %s times.", baseGoal = 20, baseFavor = 1, patterns = { "The Overloaded Core", "Unstable Conduit" } }
+    },
+    ["Shroud of Purity"] = {
+        { trigger = "EXPOSED_KILL", baseDesc = "Strike from the brink. Execute %s enemies while your Exposure is above 50%.", baseGoal = 10, baseFavor = 2, patterns = { "The Thrill of the Hunt", "Dance with Discovery" } }
+    },
+    ["ROGUE_RINGBEARER"] = {
+        { trigger = "CORRUPTED_KILL", baseDesc = "Succumb to the whisper. Execute %s enemies while your mind is Corrupted above 50%.", baseGoal = 10, baseFavor = 2, patterns = { "The Shadow Realm", "Burden of the Ring" } }
+    }
+}
+
 local DungeonBossDB = {
     -- RFC
     [11520]=true, [11517]=true, [11518]=true, [11519]=true,
@@ -667,6 +696,7 @@ local function PlayerCanComplete(template, pLvl)
     if template.reqHardcore and not (C_GameRules and C_GameRules.IsHardcoreActive and C_GameRules.IsHardcoreActive()) then return false end
     if template.reqMelee and not (pClass == "WARRIOR" or pClass == "ROGUE" or pClass == "PALADIN" or pClass == "SHAMAN" or pClass == "HUNTER" or pClass == "DRUID") then return false end
     if template.reqCaster and not (pClass == "MAGE" or pClass == "PRIEST" or pClass == "WARLOCK" or pClass == "SHAMAN" or pClass == "DRUID" or pClass == "PALADIN") then return false end
+	if template.reqAbsorb and not (pClass == "PRIEST" or pClass == "MAGE" or pClass == "WARLOCK") then return false end
     if template.reqHolyFire and not (pClass == "PALADIN" or pClass == "PRIEST" or pClass == "MAGE" or pClass == "WARLOCK" or pClass == "SHAMAN") then return false end
     
     -- Elemental Specifics Fix
@@ -744,8 +774,16 @@ end
 local function GenerateProceduralContract(allowRare)
     local pLvl = UnitLevel("player") or 1
     local validActions = {}
+    
     for _, a in ipairs(ActionTemplates) do
         if PlayerCanComplete(a, pLvl) then table.insert(validActions, a) end
+    end
+    
+    local activeVow = GetActivePurityVow()
+    if activeVow and PurityIntegration[activeVow] then
+        for _, customPact in ipairs(PurityIntegration[activeVow]) do
+            table.insert(validActions, customPact)
+        end
     end
     
     local template = validActions[math.random(#validActions)]
@@ -3500,6 +3538,37 @@ local function CheckCombatProgress(event, ...)
         end
         
         if sourceGUID == UnitGUID("player") or sourceGUID == UnitGUID("pet") then
+		
+			local activeVow = GetActivePurityVow()
+
+            -- PURITY: Blood Mage & Conduit Tracking
+            if subEvent == "SPELL_CAST_SUCCESS" then
+                if activeVow == "BLOOD_MAGE_BARGAIN" and Purity.GlobalModules and Purity.GlobalModules.BLOOD_MAGE_BARGAIN then
+                    local bloodMod = Purity.GlobalModules.BLOOD_MAGE_BARGAIN
+                    local bloodCost = bloodMod.GetBloodCostForSpell and bloodMod:GetBloodCostForSpell(spellId) or 0
+                    if bloodCost > 0 then
+                        local finalCost = bloodMod.sanguineWeaknessActive and (bloodCost * 2) or bloodCost
+                        for i = #DarkPatronDB.ActiveMissions, 1, -1 do
+                            local mission = DarkPatronDB.ActiveMissions[i]
+                            if mission.trigger == "BLOOD_SACRIFICE" then
+                                mission.current = mission.current + finalCost
+                                if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                            end
+                        end
+                    end
+                elseif activeVow == "Conduit of Purity" and Purity.ClassModules and Purity.ClassModules.MAGE and Purity.ClassModules.MAGE.challenges.conduit then
+                    local conduitMod = Purity.ClassModules.MAGE.challenges.conduit
+                    if conduitMod.charge and conduitMod.charge >= 99 then
+                        for i = #DarkPatronDB.ActiveMissions, 1, -1 do
+                            local mission = DarkPatronDB.ActiveMissions[i]
+                            if mission.trigger == "STATIC_DISCHARGE" then
+                                mission.current = mission.current + 1
+                                if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                            end
+                        end
+                    end
+                end
+            end
         
             -- NEW: Overkill & Drain Tracking
             if amount and amount > 0 then
@@ -3642,14 +3711,11 @@ local function CheckCombatProgress(event, ...)
                 local creatureType = UnitCreatureType("target") or ""
                 local hasBuffs = false
                 local hasDebuffs = false
+                
                 for b = 1, 40 do 
                     local name, _, _, _, _, _, _, _, _, spellId = UnitAura("player", b, "HELPFUL")
                     if not name then break end
-                    
-                    if name ~= "Soul of Iron" and spellId ~= 431567 then 
-                        hasBuffs = true 
-                        break 
-                    end 
+                    if name ~= "Soul of Iron" and spellId ~= 431567 then hasBuffs = true break end 
                 end
                 
                 for b = 1, 40 do if UnitAura("player", b, "HARMFUL") then hasDebuffs = true break end end
@@ -3660,8 +3726,16 @@ local function CheckCombatProgress(event, ...)
                     local _, _, quality = GetItemInfo(mhLink)
                     if quality == 0 or quality == 1 then isGrayWep = true end
                 else
-                    isGrayWep = true -- Unarmed counts as poor weapon
+                    isGrayWep = true
                 end
+
+                local activeVow = GetActivePurityVow()
+                
+                -- Purity Integration Flags
+                local isWeakened = (activeVow == "BLOOD_MAGE_BARGAIN" and Purity.GlobalModules and Purity.GlobalModules.BLOOD_MAGE_BARGAIN and Purity.GlobalModules.BLOOD_MAGE_BARGAIN.sanguineWeaknessActive)
+                local isSmashed = (activeVow == "DRUNK" and Purity.GlobalModules and Purity.GlobalModules.DRUNK and Purity.GlobalModules.DRUNK.GetCurrentState and Purity.GlobalModules.DRUNK:GetCurrentState() == "Smashed")
+                local isExposed = (activeVow == "Shroud of Purity" and Purity_PerCharacterDB and Purity_PerCharacterDB.rogueExposure and Purity_PerCharacterDB.rogueExposure >= 50)
+                local isCorrupted = (activeVow == "ROGUE_RINGBEARER" and Purity_PerCharacterDB and Purity_PerCharacterDB.ringCorruption and Purity_PerCharacterDB.ringCorruption >= 50)
                 
                 for i = #DarkPatronDB.ActiveMissions, 1, -1 do
                     local mission = DarkPatronDB.ActiveMissions[i]
@@ -3705,6 +3779,18 @@ local function CheckCombatProgress(event, ...)
                             mission.current = mission.current + 1
                             if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
                         end
+					elseif mission.trigger == "WEAKENED_KILL" and isWeakened then
+                        mission.current = mission.current + 1
+                        if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                    elseif mission.trigger == "DRUNKEN_BRAWL" and isSmashed then
+                        mission.current = mission.current + 1
+                        if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                    elseif mission.trigger == "EXPOSED_KILL" and isExposed then
+                        mission.current = mission.current + 1
+                        if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                    elseif mission.trigger == "CORRUPTED_KILL" and isCorrupted then
+                        mission.current = mission.current + 1
+                        if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
                     elseif mission.trigger == "SPECIFIC_KILL" and destName == mission.targetName then 
                         mission.current = mission.current + 1
                         if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
@@ -3729,18 +3815,55 @@ local function CheckCombatProgress(event, ...)
         if destGUID == UnitGUID("player") then
             local tookDamage = (subEvent == "SWING_DAMAGE" or subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE" or subEvent == "SPELL_PERIODIC_DAMAGE" or subEvent == "ENVIRONMENTAL_DAMAGE")
             
+            -- Purity Integration: Calculate effective damage & Shield Bleed
+            local effectiveDamage = amount or 0
+            local bleedThrough = 0
+            local activeVow = GetActivePurityVow()
+            
+            if activeVow == "GLASS_HEART" and Purity_PerCharacterDB and Purity_PerCharacterDB.glassHeartMultiplier then
+                effectiveDamage = effectiveDamage * Purity_PerCharacterDB.glassHeartMultiplier
+                
+                local absorbedAmount = 0
+                if tookDamage then
+                    if subEvent == "SWING_DAMAGE" then absorbedAmount = select(17, CombatLogGetCurrentEventInfo())
+                    elseif subEvent == "RANGE_DAMAGE" then absorbedAmount = select(20, CombatLogGetCurrentEventInfo())
+                    elseif subEvent == "ENVIRONMENTAL_DAMAGE" then absorbedAmount = select(18, CombatLogGetCurrentEventInfo())
+                    else absorbedAmount = select(20, CombatLogGetCurrentEventInfo()) end
+                elseif string.find(subEvent, "_MISSED") then
+                    local missType = select(12, CombatLogGetCurrentEventInfo())
+                    if subEvent == "SPELL_MISSED" or subEvent == "RANGE_MISSED" then missType = select(15, CombatLogGetCurrentEventInfo()) end
+                    if missType == "ABSORB" then
+                        if subEvent == "SWING_MISSED" then absorbedAmount = select(14, CombatLogGetCurrentEventInfo())
+                        else absorbedAmount = select(17, CombatLogGetCurrentEventInfo()) end
+                    end
+                end
+                
+                if absorbedAmount and absorbedAmount > 0 then
+                    bleedThrough = absorbedAmount * (Purity_PerCharacterDB.glassHeartMultiplier - 1)
+                end
+            end
+            
             for i = #DarkPatronDB.ActiveMissions, 1, -1 do
                 local mission = DarkPatronDB.ActiveMissions[i]
                 
+                if mission.trigger == "SHATTERED_SURVIVAL" and tookDamage and effectiveDamage > 0 then
+                    mission.current = mission.current + effectiveDamage
+                    if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                end
+                if mission.trigger == "SHIELD_BLEED" and bleedThrough > 0 then
+                    mission.current = mission.current + bleedThrough
+                    if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                end
+                
                 -- Hard Resets
-                if mission.trigger == "FLAWLESS_KILL" and tookDamage and amount and amount > 0 then
+                if mission.trigger == "FLAWLESS_KILL" and tookDamage and effectiveDamage > 0 then
                     if mission.current > 0 then mission.current = 0; UpdateTracker() end
                 end
                 
                 -- Normal Increments
-                if mission.trigger == "PACIFIST_SURVIVAL" and tookDamage and amount and amount > 0 then mission.current = mission.current + amount; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
-                if mission.trigger == "FALLING_DAMAGE" and subEvent == "ENVIRONMENTAL_DAMAGE" and amount > 0 then mission.current = mission.current + amount; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
-                if mission.trigger == "DAMAGE_TAKEN" and subEvent:find("DAMAGE") then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
+                if mission.trigger == "PACIFIST_SURVIVAL" and tookDamage and effectiveDamage > 0 then mission.current = mission.current + effectiveDamage; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
+                if mission.trigger == "FALLING_DAMAGE" and subEvent == "ENVIRONMENTAL_DAMAGE" and effectiveDamage > 0 then mission.current = mission.current + effectiveDamage; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
+                if mission.trigger == "DAMAGE_TAKEN" and subEvent:find("DAMAGE") then mission.current = mission.current + (effectiveDamage > 0 and effectiveDamage or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
                 if mission.trigger == "HEALING_RECEIVED" and (subEvent == "SPELL_HEAL" or subEvent == "SPELL_PERIODIC_HEAL") then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
                 if mission.trigger == "DROWNING_SURVIVAL" and subEvent == "ENVIRONMENTAL_DAMAGE" then 
                     local envType = select(12, CombatLogGetCurrentEventInfo())
