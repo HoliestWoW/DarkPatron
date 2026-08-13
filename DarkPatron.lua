@@ -3543,8 +3543,9 @@ local function CheckCombatProgress(event, ...)
 
             -- PURITY: Blood Mage & Conduit Tracking
             if subEvent == "SPELL_CAST_SUCCESS" then
-                if activeVow == "BLOOD_MAGE_BARGAIN" and Purity.GlobalModules and Purity.GlobalModules.BLOOD_MAGE_BARGAIN then
-                    local bloodMod = Purity.GlobalModules.BLOOD_MAGE_BARGAIN
+                local purityMod = _G.Purity
+                if activeVow == "BLOOD_MAGE_BARGAIN" and purityMod and purityMod.GlobalModules and purityMod.GlobalModules.BLOOD_MAGE_BARGAIN then
+                    local bloodMod = purityMod.GlobalModules.BLOOD_MAGE_BARGAIN
                     local bloodCost = bloodMod.GetBloodCostForSpell and bloodMod:GetBloodCostForSpell(spellId) or 0
                     if bloodCost > 0 then
                         local finalCost = bloodMod.sanguineWeaknessActive and (bloodCost * 2) or bloodCost
@@ -3556,8 +3557,8 @@ local function CheckCombatProgress(event, ...)
                             end
                         end
                     end
-                elseif activeVow == "Conduit of Purity" and Purity.ClassModules and Purity.ClassModules.MAGE and Purity.ClassModules.MAGE.challenges.conduit then
-                    local conduitMod = Purity.ClassModules.MAGE.challenges.conduit
+                elseif activeVow == "Conduit of Purity" and purityMod and purityMod.ClassModules and purityMod.ClassModules.MAGE and purityMod.ClassModules.MAGE.challenges.conduit then
+                    local conduitMod = purityMod.ClassModules.MAGE.challenges.conduit
                     if conduitMod.charge and conduitMod.charge >= 99 then
                         for i = #DarkPatronDB.ActiveMissions, 1, -1 do
                             local mission = DarkPatronDB.ActiveMissions[i]
