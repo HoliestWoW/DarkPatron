@@ -189,13 +189,13 @@ local function GetCraftingDetails(name, prof)
             verb = "Forge"
         end
     elseif prof == "Leatherworking" then
-        verb = "Stitch"
+        verb = "Craft"
     elseif prof == "Tailoring" then
-        verb = "Weave"
+        verb = "Craft"
     elseif prof == "Engineering" then
-        verb = "Tinker"
+        verb = "Craft"
     elseif prof == "First Aid" then
-        verb = "Bind"
+        verb = "Craft"
     elseif prof == "Jewelcrafting" then
         if lowerName:find("ring") or lowerName:find("pendant") or lowerName:find("necklace") or lowerName:find("amulet") or lowerName:find("choker") then
             verb = "Craft"

@@ -74,7 +74,7 @@ DP_Core:RegisterEvent("CHAT_MSG_ADDON")
 local devMode = false
 local DEVELOPER_IDENTITY = "HoliestWoW-Dreamscythe"
 
-local DP_EvaluateBazaarAlert, PatronWhisper, ShowPatronToast, RecordCompletedPact, RefillMissionPool
+local DP_EvaluateBazaarAlert, PatronWhisper, ShowPatronToast, RecordCompletedPact, RefillMissionPool, DP_UpdateTalentText
 
 local function DP_FormatNumber(n)
     local formatted = tostring(math.floor(n or 0))
@@ -768,7 +768,12 @@ local function GenerateProceduralContract(allowRare)
     -- DUAL-CURVE MATH
     local finalGoal = template.baseGoal
     if not template.isLegendary then
-        if template.isStat then
+        if template.trigger == "OVERKILL_STRIKE" then
+            local baseDmg = 5
+            local linearScaling = pLvl * 2.5
+            local expScaling = (pLvl * pLvl) * 0.22
+            finalGoal = math.floor(baseDmg + linearScaling + expScaling)
+        elseif template.isStat then
             local statScale = 1 + ((pLvl * pLvl) * 0.022)
             finalGoal = math.floor(template.baseGoal * statScale)
         else
@@ -2668,7 +2673,7 @@ local groundCost = isTBC and 3 or 5
 
 -- LEVELING TAB CARDS
 CreateStoreCard(false, 1, "Uncommon Armaments", "Unlock the right to equip Uncommon (Green) quality gear permanently.", "35 Favor", function() if DarkPatronDB.DarkFavor >= 35 then DarkPatronDB.DarkFavor = DarkPatronDB.DarkFavor - 35; DarkPatronDB.MaxGearQuality = 2; PlaySound(8959) CheckViolations() Ledger:GetScript("OnShow")(Ledger) end end, function() return DarkPatronDB.MaxGearQuality >= 2 end, function() return DarkPatronDB.DarkFavor >= 35 end)
-CreateStoreCard(false, 2, "Grant of Knowledge", "Grants the right to allocate 1 additional talent point (Repeatable).", "", function() local cost = GetTalentCost() if DarkPatronDB.DarkFavor >= cost then DarkPatronDB.DarkFavor = DarkPatronDB.DarkFavor - cost; DarkPatronDB.MaxTalentsAllowed = (DarkPatronDB.MaxTalentsAllowed or 0) + 1; PlaySound(8959) CheckViolations(); if Ledger:IsShown() then Ledger:GetScript("OnShow")(Ledger) end end end, nil, function() return DarkPatronDB.DarkFavor >= GetTalentCost() end)
+CreateStoreCard(false, 2, "Grant of Knowledge", "Grants the right to allocate 1 additional talent point (Repeatable).", "", function() local cost = GetTalentCost() if DarkPatronDB.DarkFavor >= cost then DarkPatronDB.DarkFavor = DarkPatronDB.DarkFavor - cost; DarkPatronDB.MaxTalentsAllowed = (DarkPatronDB.MaxTalentsAllowed or 0) + 1; PlaySound(8959) CheckViolations(); if Ledger:IsShown() then Ledger:GetScript("OnShow")(Ledger) end; if DP_UpdateTalentText and PlayerTalentFrame and PlayerTalentFrame:IsShown() then DP_UpdateTalentText() end end end, nil, function() return DarkPatronDB.DarkFavor >= GetTalentCost() end)
 CreateStoreCard(false, 3, "Rare Armaments", "Unlock the right to equip Rare (Blue) quality gear permanently.", "2 Dark Sigils", function() if DarkPatronDB.DarkSigils >= 2 then DarkPatronDB.DarkSigils = DarkPatronDB.DarkSigils - 2; DarkPatronDB.MaxGearQuality = 3; PlaySound(8959) CheckViolations() Ledger:GetScript("OnShow")(Ledger) end end, function() return DarkPatronDB.MaxGearQuality >= 3 end, function() return DarkPatronDB.DarkSigils >= 2 end)
 CreateStoreCard(false, 4, "Journeyman's Cavalry", string.format("Unlock the right to summon and ride your Level %d (60%% speed) mount.", groundLvl), groundCost .. " Dark Sigils", function() if DarkPatronDB.DarkSigils >= groundCost then DarkPatronDB.DarkSigils = DarkPatronDB.DarkSigils - groundCost; DarkPatronDB.HasJourneymanCavalry = true; PlaySound(8959) Ledger:GetScript("OnShow")(Ledger) end end, function() return DarkPatronDB.HasJourneymanCavalry end, function() return DarkPatronDB.DarkSigils >= groundCost end)
 CreateStoreCard(false, 5, "The Blood Contract", "Trade 50 Favor to hunt a level-appropriate Elite. Prioritizes local zone.", "50 Favor", function()
@@ -2727,7 +2732,7 @@ CreateStoreCard(false, 10, "Extended Ledger", "Permanently unlock a 4th simultan
 CreateStoreCard(false, 11, "The Hoarder's Key", "Unlock the right to access and use your Bank.", "40 Favor", function() if DarkPatronDB.DarkFavor >= 40 then DarkPatronDB.DarkFavor = DarkPatronDB.DarkFavor - 40; DarkPatronDB.HasBank = true; PlaySound(8959) Ledger:GetScript("OnShow")(Ledger) end end, function() return DarkPatronDB.HasBank end, function() return DarkPatronDB.DarkFavor >= 40 end)
 CreateStoreCard(false, 12, "The Merchant's Writ", "Unlock the right to buy and sell on the Auction House.", "40 Favor", function() if DarkPatronDB.DarkFavor >= 40 then DarkPatronDB.DarkFavor = DarkPatronDB.DarkFavor - 40; DarkPatronDB.HasAuction = true; PlaySound(8959) Ledger:GetScript("OnShow")(Ledger) end end, function() return DarkPatronDB.HasAuction end, function() return DarkPatronDB.DarkFavor >= 40 end, true)
 CreateStoreCard(false, 13, "The Courier's Seal", "Unlock the right to open and send Mail.", "20 Favor", function() if DarkPatronDB.DarkFavor >= 20 then DarkPatronDB.DarkFavor = DarkPatronDB.DarkFavor - 20; DarkPatronDB.HasMail = true; PlaySound(8959) Ledger:GetScript("OnShow")(Ledger) end end, function() return DarkPatronDB.HasMail end, function() return DarkPatronDB.DarkFavor >= 20 end, true)
-CreateStoreCard(false, 14, "Capstone Awakening", "Unlock your 31-point ultimate talent. Required to spend 31st point.", "1 Apex Sigil", function() if DarkPatronDB.ApexSigils >= 1 then DarkPatronDB.ApexSigils = DarkPatronDB.ApexSigils - 1; DarkPatronDB.HasCapstone = true; DarkPatronDB.MaxTalentsAllowed = DarkPatronDB.MaxTalentsAllowed + 1; PlaySound(8959) CheckViolations() Ledger:GetScript("OnShow")(Ledger) end end, function() return DarkPatronDB.HasCapstone end, function() return DarkPatronDB.ApexSigils >= 1 end)
+CreateStoreCard(false, 14, "Capstone Awakening", "Unlock your 31-point ultimate talent. Required to spend 31st point.", "1 Apex Sigil", function() if DarkPatronDB.ApexSigils >= 1 then DarkPatronDB.ApexSigils = DarkPatronDB.ApexSigils - 1; DarkPatronDB.HasCapstone = true; DarkPatronDB.MaxTalentsAllowed = DarkPatronDB.MaxTalentsAllowed + 1; PlaySound(8959) CheckViolations(); if Ledger:IsShown() then Ledger:GetScript("OnShow")(Ledger) end; if DP_UpdateTalentText and PlayerTalentFrame and PlayerTalentFrame:IsShown() then DP_UpdateTalentText() end end end, function() return DarkPatronDB.HasCapstone end, function() return DarkPatronDB.ApexSigils >= 1 end)
 
 -- === APEX ENDGAME SANCTUM CARDS ===
 CreateStoreCard(true, 1, "Master's Cavalry", "Unlock the right to summon and ride your Epic (100% speed) ground mount.", "10 Apex Sigils", function() if DarkPatronDB.ApexSigils >= 10 then DarkPatronDB.ApexSigils = DarkPatronDB.ApexSigils - 10; DarkPatronDB.HasMasterCavalry = true; PlaySound(8959) Ledger:GetScript("OnShow")(Ledger) end end, function() return DarkPatronDB.HasMasterCavalry end, function() return DarkPatronDB.ApexSigils >= 10 end)
@@ -3634,11 +3639,19 @@ local function CheckCombatProgress(event, ...)
             end
 
             if awardsXp then
-                -- Build contextual flags for this exact kill
                 local creatureType = UnitCreatureType("target") or ""
                 local hasBuffs = false
                 local hasDebuffs = false
-                for b = 1, 40 do if UnitAura("player", b, "HELPFUL") then hasBuffs = true break end end
+                for b = 1, 40 do 
+                    local name, _, _, _, _, _, _, _, _, spellId = UnitAura("player", b, "HELPFUL")
+                    if not name then break end
+                    
+                    if name ~= "Soul of Iron" and spellId ~= 431567 then 
+                        hasBuffs = true 
+                        break 
+                    end 
+                end
+                
                 for b = 1, 40 do if UnitAura("player", b, "HARMFUL") then hasDebuffs = true break end end
                 
                 local isGrayWep = false
@@ -3698,9 +3711,9 @@ local function CheckCombatProgress(event, ...)
                     end
                 end
             else
-                -- If the kill DOES NOT award XP (Critters)
-                local tLevel = UnitLevel("target")
-                if tLevel and tLevel == 1 then
+                -- If the kill DOES NOT award XP, check if it was explicitly a Critter
+                local creatureType = UnitCreatureType("target")
+                if creatureType == "Critter" then
                     for i = #DarkPatronDB.ActiveMissions, 1, -1 do
                         local mission = DarkPatronDB.ActiveMissions[i]
                         if mission.trigger == "CRITTER_SLAUGHTER" then
@@ -3919,9 +3932,9 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
                 dpPointsText:SetFontObject("GameFontNormalSmall")
             end
             
-            dpPointsText:SetPoint("BOTTOM", PlayerTalentFrame, "BOTTOM", -95, 86) 
+            dpPointsText:SetPoint("BOTTOM", PlayerTalentFrame, "BOTTOM", -103, 86.5) 
 
-            local function UpdateDPTalentText()
+            DP_UpdateTalentText = function()
                 local maxAllowed = DarkPatronDB.MaxTalentsAllowed or 0
                 local spent = GetSpentTalentPoints()
                 local available = math.max(0, maxAllowed - spent)
@@ -3929,11 +3942,11 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
                 dpPointsText:SetText(string.format("Grants of Knowledge: |cffffffff%d|r", available))
             end
 
-            PlayerTalentFrame:HookScript("OnShow", UpdateDPTalentText)
+            PlayerTalentFrame:HookScript("OnShow", DP_UpdateTalentText)
             
             DP_Core:HookScript("OnEvent", function(self, evt, ...) 
                 if evt == "CHARACTER_POINTS_CHANGED" and PlayerTalentFrame and PlayerTalentFrame:IsShown() then 
-                    UpdateDPTalentText() 
+                    DP_UpdateTalentText() 
                 end 
             end)
         end
