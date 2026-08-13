@@ -2637,7 +2637,7 @@ local function UpdateBazaarUI()
         local available = math.max(0, maxAllowed - spent)
         
         storeCardsList[2].btn:SetText(cost .. " Favor") 
-        storeCardsList[2].originalDesc = string.format("Grants the right to allocate 1 additional talent point.\n\n|cffaaaaaaUnlocked: %d | Spent: %d | Available: %d|r", maxAllowed, spent, available)
+        storeCardsList[2].originalDesc = string.format("Grants the right to allocate 1 additional talent point.\n\n|cffaaaaaaAvailable: %d|r", available)
     end
     
     local function RefreshList(cards)
@@ -3894,8 +3894,8 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
                 end
                 
                 if GetSpentTalentPoints() >= (DarkPatronDB.MaxTalentsAllowed or 0) then
-                    UIErrorsFrame:AddMessage("The Veil blocks your hand. Purchase a Grant of Knowledge in the Dark Patron Bazaar.", 1.0, 0.1, 0.1, 1.0)
-                    print("|cffff0000[Dark Patron]: The Veil blocks your hand. Purchase a Grant of Knowledge in the Bazaar.|r")
+                    UIErrorsFrame:AddMessage("The Veil blocks your hand. Purchase a Grant of Knowledge.", 1.0, 0.1, 0.1, 1.0)
+                    print("|cffff0000[Dark Patron]: The Veil blocks your hand. Purchase a Grant of Knowledge.|r")
                     return
                 end
                 
@@ -3905,11 +3905,37 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
             local orig_LearnTalent = LearnTalent
             LearnTalent = function(tabIndex, talentIndex)
                 if GetSpentTalentPoints() >= (DarkPatronDB.MaxTalentsAllowed or 0) then
-                    UIErrorsFrame:AddMessage("The Veil blocks your hand. Purchase a Grant of Knowledge in the Dark Patron Bazaar.", 1.0, 0.1, 0.1, 1.0)
+                    UIErrorsFrame:AddMessage("The Veil blocks your hand. Purchase a Grant of Knowledge.", 1.0, 0.1, 0.1, 1.0)
                     return
                 end
                 return orig_LearnTalent(tabIndex, talentIndex)
             end
+
+            local dpPointsText = PlayerTalentFrame:CreateFontString(nil, "OVERLAY")
+            
+            if PlayerTalentFrameTalentPointsText then
+                dpPointsText:SetFontObject(PlayerTalentFrameTalentPointsText:GetFontObject())
+            else
+                dpPointsText:SetFontObject("GameFontNormalSmall")
+            end
+            
+            dpPointsText:SetPoint("BOTTOM", PlayerTalentFrame, "BOTTOM", -95, 86) 
+
+            local function UpdateDPTalentText()
+                local maxAllowed = DarkPatronDB.MaxTalentsAllowed or 0
+                local spent = GetSpentTalentPoints()
+                local available = math.max(0, maxAllowed - spent)
+                
+                dpPointsText:SetText(string.format("Grants of Knowledge: |cffffffff%d|r", available))
+            end
+
+            PlayerTalentFrame:HookScript("OnShow", UpdateDPTalentText)
+            
+            DP_Core:HookScript("OnEvent", function(self, evt, ...) 
+                if evt == "CHARACTER_POINTS_CHANGED" and PlayerTalentFrame and PlayerTalentFrame:IsShown() then 
+                    UpdateDPTalentText() 
+                end 
+            end)
         end
 
     elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
