@@ -427,7 +427,7 @@ local ActionTemplates = {
     -- Environmental & Sadism
     { trigger = "DROWNING_SURVIVAL", baseDesc = "Hold your breath until you take drowning damage, then survive, %s times.", baseGoal = 2, baseFavor = 2, patterns = { "The [Adj] Lungs", "Kiss of the Depths" } },
     { trigger = "EXPLORE_ZONES", baseDesc = "Discover %s new map areas or sub-zones.", baseGoal = 5, baseFavor = 2, patterns = { "The [Adj] Nomad", "Mapping the Abyss" } },
-    { trigger = "CRITTER_SLAUGHTER", baseDesc = "Ruthlessly slaughter %s harmless critters (Level 1).", baseGoal = 50, baseFavor = 1, patterns = { "The [Adj] Monster", "Pest Control" } },
+    { trigger = "CRITTER_SLAUGHTER", baseDesc = "Ruthlessly slaughter %s harmless critters (Level 1).", baseGoal = 15, baseFavor = 1, patterns = { "The [Adj] Monster", "Pest Control" } },
     { trigger = "OVERKILL_STRIKE", baseDesc = "Deliver a single, devastating strike that deals %s or more damage at once.", baseGoal = 150, baseFavor = 2, isStat = true, patterns = { "The [Adj] Hammer", "Shattering Force" } },
     
     -- Elites & PvP
