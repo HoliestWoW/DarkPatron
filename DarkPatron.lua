@@ -1227,29 +1227,62 @@ icon:SetPoint("CENTER", 0, 0)
 local pulseGlow = MinimapBtn:CreateTexture(nil, "ARTWORK")
 pulseGlow:SetTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
 pulseGlow:SetBlendMode("ADD")
-pulseGlow:SetSize(40, 40)
+pulseGlow:SetSize(50, 50)
 pulseGlow:SetPoint("CENTER", 0, 0)
-pulseGlow:SetVertexColor(0.64, 0.21, 0.93) 
+pulseGlow:SetVertexColor(0.9, 0.2, 1.0) 
 pulseGlow:Hide()
 
 local pulseAnimGroup = pulseGlow:CreateAnimationGroup()
 local alpha1 = pulseAnimGroup:CreateAnimation("Alpha")
-alpha1:SetFromAlpha(0.2); alpha1:SetToAlpha(0.8); alpha1:SetDuration(1.2); alpha1:SetOrder(1)
+alpha1:SetFromAlpha(0.1); alpha1:SetToAlpha(1.0); alpha1:SetDuration(0.8); alpha1:SetOrder(1)
 local alpha2 = pulseAnimGroup:CreateAnimation("Alpha")
-alpha2:SetFromAlpha(0.8); alpha2:SetToAlpha(0.2); alpha2:SetDuration(1.2); alpha2:SetOrder(2)
+alpha2:SetFromAlpha(1.0); alpha2:SetToAlpha(0.1); alpha2:SetDuration(0.8); alpha2:SetOrder(2)
 pulseAnimGroup:SetLooping("REPEAT")
 
 function DP_EvaluateBazaarAlert()
-    if not DarkPatronDB then return end
-    local shouldPulse = false
+    if not DarkPatronDB then return "", {} end
     
-    -- Updated to match true Bazaar costs
-    if DarkPatronDB.MaxGearQuality == 1 and DarkPatronDB.DarkFavor >= 35 then shouldPulse = true end
-    if not DarkPatronDB.HasBank and DarkPatronDB.DarkFavor >= 40 then shouldPulse = true end
-    if not DarkPatronDB.HasAlchemistGrace and DarkPatronDB.DarkFavor >= 35 then shouldPulse = true end
-    if DarkPatronDB.DungeonBounties and #DarkPatronDB.DungeonBounties > 0 then shouldPulse = true end
+    local currentState = ""
+    local newAlerts = {}
     
-    if shouldPulse then 
+    -- Parse old state tokens into a quick lookup table
+    local oldStateMap = {}
+    if DarkPatronDB.LastSeenAlertState then
+        for token in string.gmatch(DarkPatronDB.LastSeenAlertState, "([^;]+)") do
+            oldStateMap[token] = true
+        end
+    end
+    
+    -- 1. Check Bazaar Unlocks
+    if DarkPatronDB.MaxGearQuality == 1 and DarkPatronDB.DarkFavor >= 35 then 
+        currentState = currentState .. "Gear;" 
+        if not oldStateMap["Gear"] then table.insert(newAlerts, "Uncommon Armaments unlocked") end
+    end
+    if not DarkPatronDB.HasBank and DarkPatronDB.DarkFavor >= 40 then 
+        currentState = currentState .. "Bank;" 
+        if not oldStateMap["Bank"] then table.insert(newAlerts, "The Hoarder's Key available") end
+    end
+    if not DarkPatronDB.HasAlchemistGrace and DarkPatronDB.DarkFavor >= 35 then 
+        currentState = currentState .. "Alch;" 
+        if not oldStateMap["Alch"] then table.insert(newAlerts, "The Alchemist's Grace available") end
+    end
+    
+    -- 2. Check Dungeon Bounties (Track new dungeon IDs dynamically)
+    local newDungeonCount = 0
+    if DarkPatronDB.DungeonBounties and #DarkPatronDB.DungeonBounties > 0 then
+        for _, d in ipairs(DarkPatronDB.DungeonBounties) do
+            currentState = currentState .. d.id .. ";"
+            if not oldStateMap[d.id] then
+                newDungeonCount = newDungeonCount + 1
+            end
+        end
+        if newDungeonCount > 0 then
+            table.insert(newAlerts, string.format("%d new Dungeon Pact%s arrived", newDungeonCount, newDungeonCount > 1 and "s" or ""))
+        end
+    end
+    
+    -- We only pulse if there are strictly *new* unacknowledged things
+    if #newAlerts > 0 then 
         pulseGlow:Show() 
         if not pulseAnimGroup:IsPlaying() then
             pulseAnimGroup:Play() 
@@ -1258,6 +1291,8 @@ function DP_EvaluateBazaarAlert()
         pulseGlow:Hide() 
         pulseAnimGroup:Stop() 
     end
+    
+    return currentState, newAlerts
 end
 
 local border = MinimapBtn:CreateTexture(nil, "OVERLAY")
@@ -1285,6 +1320,16 @@ MinimapBtn:SetScript("OnEnter", function(self)
             GameTooltip:AddDoubleLine("Dark Sigils:", tostring(DarkPatronDB.DarkSigils or 0), 1, 1, 1, 0.64, 0.21, 0.93)
             GameTooltip:AddDoubleLine("Apex Sigils:", tostring(DarkPatronDB.ApexSigils or 0), 1, 1, 1, 1, 0.5, 0)
             GameTooltip:AddLine(" ")
+            
+            -- Fetch fresh unread notifications
+            local _, newAlerts = DP_EvaluateBazaarAlert()
+            if newAlerts and #newAlerts > 0 then
+                GameTooltip:AddLine("|cffffd700New Ledger Activity:|r", 1, 1, 1)
+                for _, line in ipairs(newAlerts) do
+                    GameTooltip:AddLine("• " .. line, 0.9, 0.9, 0.9, true)
+                end
+                GameTooltip:AddLine(" ")
+            end
             
             local lastRefresh = DarkPatronDB.LastBoardRefresh or time()
             local timeSinceRefresh = time() - lastRefresh
@@ -2730,6 +2775,10 @@ end)
 
 Ledger:SetScript("OnShow", function()
     if DarkPatronDB then
+        -- Acknowledge and dismiss the current alerts the moment the ledger is opened
+        DarkPatronDB.LastSeenAlertState = DP_EvaluateBazaarAlert()
+        DP_EvaluateBazaarAlert()
+        
         txtFavor:SetText("Dark Favor: " .. DarkPatronDB.DarkFavor)
         txtSigils:SetText("Dark Sigils: " .. DarkPatronDB.DarkSigils)
         txtApex:SetText("Apex Sigils: " .. DarkPatronDB.ApexSigils)
