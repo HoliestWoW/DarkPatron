@@ -3887,18 +3887,29 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
             end)
             
         elseif addonName == "Blizzard_TalentUI" then
-            local tBlocker = CreateFrame("Frame", "DarkPatronTalentBlocker", PlayerTalentFrame)
-            tBlocker:SetPoint("TOPLEFT", PlayerTalentFrame, "TOPLEFT", 15, -65)
-            tBlocker:SetPoint("BOTTOMRIGHT", PlayerTalentFrame, "BOTTOMRIGHT", -40, 75)
-            tBlocker:EnableMouse(true)
-            tBlocker:SetFrameLevel(PlayerTalentFrame:GetFrameLevel() + 10)
-            tBlocker:SetScript("OnMouseUp", function() print("|cffff0000[Dark Patron]: The Veil blocks your hand. Purchase a Grant of Knowledge.|r") end)
-            
-            local function EvalTalentBlocker()
-                if GetSpentTalentPoints() >= (DarkPatronDB.MaxTalentsAllowed or 0) then tBlocker:Show() else tBlocker:Hide() end
+            local orig_PlayerTalentFrameTalent_OnClick = PlayerTalentFrameTalent_OnClick
+            PlayerTalentFrameTalent_OnClick = function(self, button)
+                if IsModifiedClick("CHATLINK") then
+                    return orig_PlayerTalentFrameTalent_OnClick(self, button)
+                end
+                
+                if GetSpentTalentPoints() >= (DarkPatronDB.MaxTalentsAllowed or 0) then
+                    UIErrorsFrame:AddMessage("The Veil blocks your hand. Purchase a Grant of Knowledge in the Dark Patron Bazaar.", 1.0, 0.1, 0.1, 1.0)
+                    print("|cffff0000[Dark Patron]: The Veil blocks your hand. Purchase a Grant of Knowledge in the Bazaar.|r")
+                    return
+                end
+                
+                return orig_PlayerTalentFrameTalent_OnClick(self, button)
             end
-            PlayerTalentFrame:HookScript("OnShow", EvalTalentBlocker)
-            DP_Core:HookScript("OnEvent", function(self, evt, ...) if evt == "CHARACTER_POINTS_CHANGED" and PlayerTalentFrame and PlayerTalentFrame:IsShown() then EvalTalentBlocker() end end)
+            
+            local orig_LearnTalent = LearnTalent
+            LearnTalent = function(tabIndex, talentIndex)
+                if GetSpentTalentPoints() >= (DarkPatronDB.MaxTalentsAllowed or 0) then
+                    UIErrorsFrame:AddMessage("The Veil blocks your hand. Purchase a Grant of Knowledge in the Dark Patron Bazaar.", 1.0, 0.1, 0.1, 1.0)
+                    return
+                end
+                return orig_LearnTalent(tabIndex, talentIndex)
+            end
         end
 
     elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
