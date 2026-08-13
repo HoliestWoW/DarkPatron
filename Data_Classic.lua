@@ -54,7 +54,7 @@ DP.TradeGoodsDB = {
     { name = "Mithril Ore", minSkill = 175, maxSkill = 250, reqProf = "Mining" },
     { name = "Truesilver Ore", minSkill = 230, maxSkill = 280, reqProf = "Mining" },
     { name = "Dark Iron Ore", minSkill = 230, maxSkill = 280, reqProf = "Mining" },
-    { name = "Thorium Ore", minSkill = 250, maxSkill = 300, reqProf = "Mining" }
+    { name = "Thorium Ore", minSkill = 250, maxSkill = 300, reqProf = "Mining" },
 
     { name = "Peacebloom", minSkill = 1, maxSkill = 50, reqProf = "Herbalism" },
     { name = "Silverleaf", minSkill = 1, maxSkill = 50, reqProf = "Herbalism" },
