@@ -70,6 +70,8 @@ DP_Core:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 DP_Core:RegisterEvent("PLAYER_DEAD")
 DP_Core:RegisterEvent("PLAYER_LEVEL_UP")
 DP_Core:RegisterEvent("CHAT_MSG_ADDON")
+DP_Core:RegisterEvent("PLAYER_TARGET_CHANGED")
+DP_Core:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
 
 local devMode = false
 local DEVELOPER_IDENTITY = "HoliestWoW-Dreamscythe"
@@ -3413,6 +3415,24 @@ end
 
 local lastQuestCount = 0
 
+local CreatureCache = {}
+
+local function CheckCombatProgress(event, ...)
+    if not DarkPatronDB or not DarkPatronDB.ActiveMissions then return end
+
+    if event == "PLAYER_TARGET_CHANGED" or event == "UPDATE_MOUSEOVER_UNIT" then
+        local unit = (event == "UPDATE_MOUSEOVER_UNIT") and "mouseover" or "target"
+        if UnitExists(unit) then
+            local guid = UnitGUID(unit)
+            local creatureType = UnitCreatureType(unit)
+            if guid and creatureType then
+                CreatureCache[guid] = creatureType
+            end
+        end
+        return
+    end
+end
+
 local function CheckCombatProgress(event, ...)
     if not DarkPatronDB or not DarkPatronDB.ActiveMissions then return end
 
@@ -3657,7 +3677,7 @@ local function CheckCombatProgress(event, ...)
                 if mission.trigger == "ARCANE_DAMAGE" and (subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE" or subEvent == "SPELL_PERIODIC_DAMAGE") then if spellSchool and bit.band(spellSchool, 64) > 0 then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
                 if mission.trigger == "HOLY_FIRE_DAMAGE" and (subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE" or subEvent == "SPELL_PERIODIC_DAMAGE") then if spellSchool and (bit.band(spellSchool, 2) > 0 or bit.band(spellSchool, 4) > 0) then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end end
                 
-                if mission.trigger == "CRIT_STRIKE" and subEvent:find("DAMAGE") then
+                if mission.trigger == "CRIT_STRIKE" and subEvent and subEvent:find("DAMAGE") then
                     local isCrit = false
                     if subEvent == "SWING_DAMAGE" then isCrit = select(18, CombatLogGetCurrentEventInfo()) else isCrit = select(21, CombatLogGetCurrentEventInfo()) end
                     if isCrit then mission.current = mission.current + 1; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
@@ -3674,28 +3694,35 @@ local function CheckCombatProgress(event, ...)
             if idStr then destNpcID = tonumber(idStr) or 0 end
         end
 
-        if subEvent == "UNIT_DIED" and DungeonBossDB[destNpcID] then
-            local currentZoneName = GetInstanceInfo()
-            
-            for i = #DarkPatronDB.ActiveMissions, 1, -1 do
-                local mission = DarkPatronDB.ActiveMissions[i]
-                if mission.trigger == "DUNGEON_BOSS_KILL" then 
-                    local isCorrectZone = false
-                    if currentZoneName and currentZoneName ~= "" and mission.targetName then
-                        if string.find(mission.targetName, currentZoneName, 1, true) or string.find(currentZoneName, mission.targetName, 1, true) then
-                            isCorrectZone = true
-                        end
-                        if string.find(currentZoneName, "Atal'Hakkar") and string.find(mission.targetName, "Atal'Hakkar") then
-                            isCorrectZone = true
-                        end
-                    end
+        if subEvent == "UNIT_DIED" then
+            -- Clean up cache on death to prevent memory bloat
+            if destGUID and CreatureCache[destGUID] then
+                CreatureCache[destGUID] = nil
+            end
 
-                    if isCorrectZone then
-                        if devMode or IsGroupValidForDungeon(mission.targetInstanceID) then
-                            mission.current = mission.current + 1
-                            if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
-                        else
-                            print("|cffff0000[Dark Patron]: Boss kill invalidated! Group level restriction failed.|r")
+            if DungeonBossDB[destNpcID] then
+                local currentZoneName = GetInstanceInfo()
+                
+                for i = #DarkPatronDB.ActiveMissions, 1, -1 do
+                    local mission = DarkPatronDB.ActiveMissions[i]
+                    if mission.trigger == "DUNGEON_BOSS_KILL" then 
+                        local isCorrectZone = false
+                        if currentZoneName and currentZoneName ~= "" and mission.targetName then
+                            if string.find(mission.targetName, currentZoneName, 1, true) or string.find(currentZoneName, mission.targetName, 1, true) then
+                                isCorrectZone = true
+                            end
+                            if string.find(currentZoneName, "Atal'Hakkar") and string.find(mission.targetName, "Atal'Hakkar") then
+                                isCorrectZone = true
+                            end
+                        end
+
+                        if isCorrectZone then
+                            if devMode or IsGroupValidForDungeon(mission.targetInstanceID) then
+                                mission.current = mission.current + 1
+                                if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
+                            else
+                                print("|cffff0000[Dark Patron]: Boss kill invalidated! Group level restriction failed.|r")
+                            end
                         end
                     end
                 end
@@ -3704,15 +3731,49 @@ local function CheckCombatProgress(event, ...)
 
         -- 2. STANDARD KILLS (Filtered by XP, uses PARTY_KILL)
         if subEvent == "PARTY_KILL" then
-            local targetLvl = UnitLevel("target")
-            local awardsXp = true 
+            local awardsXp = false
             
-            if targetLvl and targetLvl > 0 and not devMode then
-                awardsXp = GivesExperience(targetLvl)
+            -- Pull creature type from our cache, fallback to live tokens
+            local creatureType = CreatureCache[destGUID]
+            if not creatureType then
+                local possibleTokens = {"target", "mouseover", "pettarget", "targettarget"}
+                for _, token in ipairs(possibleTokens) do
+                    if destGUID == UnitGUID(token) then
+                        creatureType = UnitCreatureType(token)
+                        break
+                    end
+                end
+            end
+            creatureType = creatureType or ""
+            local isCritter = (creatureType == "Critter")
+
+            -- Determine XP Progression
+            if not isCritter then
+                local targetLvl = 0
+                local possibleTokens = {"target", "mouseover", "pettarget", "targettarget"}
+                for _, token in ipairs(possibleTokens) do
+                    if destGUID == UnitGUID(token) then
+                        targetLvl = UnitLevel(token) or 0
+                        break
+                    end
+                end
+                
+                if targetLvl > 0 and not devMode then
+                    awardsXp = GivesExperience(targetLvl)
+                else
+                    awardsXp = true -- Assume valid for untargeted blind AoE kills if not a critter
+                end
             end
 
-            if awardsXp then
-                local creatureType = UnitCreatureType("target") or ""
+            if isCritter then
+                for i = #DarkPatronDB.ActiveMissions, 1, -1 do
+                    local mission = DarkPatronDB.ActiveMissions[i]
+                    if mission.trigger == "CRITTER_SLAUGHTER" then
+                        mission.current = mission.current + 1
+                        if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                    end
+                end
+            elseif awardsXp then
                 local hasBuffs = false
                 local hasDebuffs = false
                 
@@ -3832,7 +3893,7 @@ local function CheckCombatProgress(event, ...)
                     elseif subEvent == "RANGE_DAMAGE" then absorbedAmount = select(20, CombatLogGetCurrentEventInfo())
                     elseif subEvent == "ENVIRONMENTAL_DAMAGE" then absorbedAmount = select(18, CombatLogGetCurrentEventInfo())
                     else absorbedAmount = select(20, CombatLogGetCurrentEventInfo()) end
-                elseif string.find(subEvent, "_MISSED") then
+                elseif subEvent and string.find(subEvent, "_MISSED") then
                     local missType = select(12, CombatLogGetCurrentEventInfo())
                     if subEvent == "SPELL_MISSED" or subEvent == "RANGE_MISSED" then missType = select(15, CombatLogGetCurrentEventInfo()) end
                     if missType == "ABSORB" then
@@ -3866,7 +3927,7 @@ local function CheckCombatProgress(event, ...)
                 -- Normal Increments
                 if mission.trigger == "PACIFIST_SURVIVAL" and tookDamage and effectiveDamage > 0 then mission.current = mission.current + effectiveDamage; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
                 if mission.trigger == "FALLING_DAMAGE" and subEvent == "ENVIRONMENTAL_DAMAGE" and effectiveDamage > 0 then mission.current = mission.current + effectiveDamage; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
-                if mission.trigger == "DAMAGE_TAKEN" and subEvent:find("DAMAGE") then mission.current = mission.current + (effectiveDamage > 0 and effectiveDamage or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
+                if mission.trigger == "DAMAGE_TAKEN" and subEvent and subEvent:find("DAMAGE") then mission.current = mission.current + (effectiveDamage > 0 and effectiveDamage or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
                 if mission.trigger == "HEALING_RECEIVED" and (subEvent == "SPELL_HEAL" or subEvent == "SPELL_PERIODIC_HEAL") then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
                 if mission.trigger == "DROWNING_SURVIVAL" and subEvent == "ENVIRONMENTAL_DAMAGE" then 
                     local envType = select(12, CombatLogGetCurrentEventInfo())
@@ -4214,7 +4275,7 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
                 DP_EvaluateBazaarAlert()
             end
         end
-    elseif event == "COMBAT_LOG_EVENT_UNFILTERED" or event == "CHAT_MSG_LOOT" or event == "CHAT_MSG_MONEY" or event == "QUEST_TURNED_IN" or event == "QUEST_LOG_UPDATE" or event == "CHAT_MSG_SYSTEM" or event == "PLAYER_DEAD" then
+    elseif event == "COMBAT_LOG_EVENT_UNFILTERED" or event == "CHAT_MSG_LOOT" or event == "CHAT_MSG_MONEY" or event == "QUEST_TURNED_IN" or event == "QUEST_LOG_UPDATE" or event == "CHAT_MSG_SYSTEM" or event == "PLAYER_DEAD" or event == "PLAYER_TARGET_CHANGED" or event == "UPDATE_MOUSEOVER_UNIT" then
         CheckCombatProgress(event, ...)
     elseif event == "PLAYER_LOGOUT" then
         if DarkPatronDB and DarkPatronDB.ActiveMissions then
