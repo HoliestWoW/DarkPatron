@@ -418,7 +418,7 @@ local ActionTemplates = {
     
     -- Vulnerability & Deprivation
     { trigger = "NO_BUFF_KILL", baseDesc = "Strike the killing blow on %s targets while having ZERO helpful buffs or auras active. [Soul of Iron and Self-Found Adventurer are exception.]", baseGoal = 10, baseFavor = 2, patterns = { "The [Adj] Null", "Mortal Frailty" } },
-    { trigger = "DEBUFFED_KILL", baseDesc = "Strike the killing blow on %s targets while YOU are suffering from a poison, disease, curse, or bleed.", baseGoal = 5, baseFavor = 3, patterns = { "The [Adj] Masochist", "Blood for Blood" } },
+    { trigger = "DEBUFFED_KILL", baseDesc = "Strike the killing blow on %s targets while YOU are suffering from a poison, disease, curse, or bleed.", baseGoal = 5, baseFavor = 2, patterns = { "The [Adj] Masochist", "Blood for Blood" } },
     { trigger = "GRAY_WEAPON_KILL", baseDesc = "Strike the killing blow on %s targets while wielding only a Poor (Gray) or Common (White) weapon.", baseGoal = 15, baseFavor = 2, reqMelee = true, patterns = { "The Peasant's Ire", "Iron & Rust" } },
     
     -- Utility & Control
