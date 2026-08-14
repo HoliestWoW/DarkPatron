@@ -3546,12 +3546,13 @@ local function CheckCombatProgress(event, ...)
 
             -- PURITY: Blood Mage & Conduit Tracking
             if subEvent == "SPELL_CAST_SUCCESS" then
-                local purityMod = _G.Purity
-                if activeVow == "BLOOD_MAGE_BARGAIN" and purityMod and purityMod.GlobalModules and purityMod.GlobalModules.BLOOD_MAGE_BARGAIN then
-                    local bloodMod = purityMod.GlobalModules.BLOOD_MAGE_BARGAIN
-                    local bloodCost = bloodMod.GetBloodCostForSpell and bloodMod:GetBloodCostForSpell(spellId) or 0
+                local spellId = select(12, CombatLogGetCurrentEventInfo())
+                
+                if activeVow == "BLOOD_MAGE_BARGAIN" and type(_G.Purity_GetSpellBloodCost) == "function" then
+                    local bloodCost = _G.Purity_GetSpellBloodCost(spellId) or 0
                     if bloodCost > 0 then
-                        local finalCost = bloodMod.sanguineWeaknessActive and (bloodCost * 2) or bloodCost
+                        local isWeakened = type(_G.Purity_IsSanguineWeaknessActive) == "function" and _G.Purity_IsSanguineWeaknessActive()
+                        local finalCost = isWeakened and (bloodCost * 2) or bloodCost
                         for i = #DarkPatronDB.ActiveMissions, 1, -1 do
                             local mission = DarkPatronDB.ActiveMissions[i]
                             if mission.trigger == "BLOOD_SACRIFICE" then
@@ -3560,9 +3561,8 @@ local function CheckCombatProgress(event, ...)
                             end
                         end
                     end
-                elseif activeVow == "Conduit of Purity" and purityMod and purityMod.ClassModules and purityMod.ClassModules.MAGE and purityMod.ClassModules.MAGE.challenges.conduit then
-                    local conduitMod = purityMod.ClassModules.MAGE.challenges.conduit
-                    if conduitMod.charge and conduitMod.charge >= 99 then
+                elseif activeVow == "Conduit of Purity" and type(_G.Purity_IsStaticChargeMax) == "function" then
+                    if _G.Purity_IsStaticChargeMax() then
                         for i = #DarkPatronDB.ActiveMissions, 1, -1 do
                             local mission = DarkPatronDB.ActiveMissions[i]
                             if mission.trigger == "STATIC_DISCHARGE" then
@@ -3735,9 +3735,8 @@ local function CheckCombatProgress(event, ...)
 
                 local activeVow = GetActivePurityVow()
                 
-                -- Purity Integration Flags
-                local isWeakened = (activeVow == "BLOOD_MAGE_BARGAIN" and Purity.GlobalModules and Purity.GlobalModules.BLOOD_MAGE_BARGAIN and Purity.GlobalModules.BLOOD_MAGE_BARGAIN.sanguineWeaknessActive)
-                local isSmashed = (activeVow == "DRUNK" and Purity.GlobalModules and Purity.GlobalModules.DRUNK and Purity.GlobalModules.DRUNK.GetCurrentState and Purity.GlobalModules.DRUNK:GetCurrentState() == "Smashed")
+                local isWeakened = (activeVow == "BLOOD_MAGE_BARGAIN" and type(_G.Purity_IsSanguineWeaknessActive) == "function" and _G.Purity_IsSanguineWeaknessActive())
+                local isSmashed = (activeVow == "DRUNK" and type(_G.Purity_IsCompletelySmashed) == "function" and _G.Purity_IsCompletelySmashed())
                 local isExposed = (activeVow == "Shroud of Purity" and Purity_PerCharacterDB and Purity_PerCharacterDB.rogueExposure and Purity_PerCharacterDB.rogueExposure >= 50)
                 local isCorrupted = (activeVow == "ROGUE_RINGBEARER" and Purity_PerCharacterDB and Purity_PerCharacterDB.ringCorruption and Purity_PerCharacterDB.ringCorruption >= 50)
                 
