@@ -415,7 +415,7 @@ local ActionTemplates = {
     { trigger = "TYPED_KILL", targetName = "Elemental", baseDesc = "Shatter %s Elementals.", baseGoal = 10, baseFavor = 2, patterns = { "The Stormbreaker", "Dust to Dust" } },
     
     -- Vulnerability & Deprivation
-    { trigger = "NO_BUFF_KILL", baseDesc = "Strike the killing blow on %s targets while having ZERO helpful buffs or auras active.", baseGoal = 10, baseFavor = 2, patterns = { "The [Adj] Null", "Mortal Frailty" } },
+    { trigger = "NO_BUFF_KILL", baseDesc = "Strike the killing blow on %s targets while having ZERO helpful buffs or auras active. [Soul of Iron and Self-Found Adventurer are exception.", baseGoal = 10, baseFavor = 2, patterns = { "The [Adj] Null", "Mortal Frailty" } },
     { trigger = "DEBUFFED_KILL", baseDesc = "Strike the killing blow on %s targets while YOU are suffering from a poison, disease, curse, or bleed.", baseGoal = 5, baseFavor = 3, patterns = { "The [Adj] Masochist", "Blood for Blood" } },
     { trigger = "GRAY_WEAPON_KILL", baseDesc = "Strike the killing blow on %s targets while wielding only a Poor (Gray) or Common (White) weapon.", baseGoal = 15, baseFavor = 2, reqMelee = true, patterns = { "The Peasant's Ire", "Iron & Rust" } },
     
@@ -427,7 +427,7 @@ local ActionTemplates = {
     -- Environmental & Sadism
     { trigger = "DROWNING_SURVIVAL", baseDesc = "Hold your breath until you take drowning damage, then survive, %s times.", baseGoal = 2, baseFavor = 2, patterns = { "The [Adj] Lungs", "Kiss of the Depths" } },
     { trigger = "EXPLORE_ZONES", baseDesc = "Discover %s new map areas or sub-zones.", baseGoal = 5, baseFavor = 2, patterns = { "The [Adj] Nomad", "Mapping the Abyss" } },
-    { trigger = "CRITTER_SLAUGHTER", baseDesc = "Ruthlessly slaughter %s harmless critters (Level 1).", baseGoal = 15, baseFavor = 1, patterns = { "The [Adj] Monster", "Pest Control" } },
+    { trigger = "CRITTER_SLAUGHTER", baseDesc = "Ruthlessly slaughter %s harmless critters.", baseGoal = 15, baseFavor = 1, patterns = { "The [Adj] Monster", "Pest Control" } },
     { trigger = "OVERKILL_STRIKE", baseDesc = "Deliver a single, devastating strike that deals %s or more damage at once.", baseGoal = 150, baseFavor = 2, isStat = true, patterns = { "The [Adj] Hammer", "Shattering Force" } },
     
     -- Elites & PvP
