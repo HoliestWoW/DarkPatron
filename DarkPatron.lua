@@ -466,11 +466,11 @@ end
 
 local PurityIntegration = {
     ["BLOOD_MAGE_BARGAIN"] = {
-        { trigger = "BLOOD_SACRIFICE", baseDesc = "Expend %s of your own Blood to fuel your heavy abilities.", baseGoal = 1500, baseFavor = 1, isStat = true, patterns = { "The Crimson Toll", "Price of the Bargain" } },
+        { trigger = "BLOOD_SACRIFICE", baseDesc = "Expend %s of your own Blood to fuel your heavy abilities.", baseGoal = 150, baseFavor = 1, isStat = true, patterns = { "The Crimson Toll", "Price of the Bargain" } },
         { trigger = "WEAKENED_KILL", baseDesc = "Execute %s enemies while suffering from Sanguine Weakness.", baseGoal = 10, baseFavor = 2, patterns = { "The Fragile Edge", "Power in Frailty" } }
     },
     ["GLASS_HEART"] = {
-        { trigger = "SHATTERED_SURVIVAL", baseDesc = "Survive taking %s structural damage bleeding through your shields.", baseGoal = 2000, baseFavor = 2, isStat = true, reqAbsorb = true, patterns = { "The Shattered Aegis", "Brittle Bones" } }
+        { trigger = "SHATTERED_SURVIVAL", baseDesc = "Survive taking %s structural damage bleeding through your shields.", baseGoal = 150, baseFavor = 2, isStat = true, reqAbsorb = true, patterns = { "The Shattered Aegis", "Brittle Bones" } }
     },
     ["DRUNK"] = {
         { trigger = "DRUNKEN_BRAWL", baseDesc = "Strike the killing blow on %s enemies while Completely Smashed.", baseGoal = 15, baseFavor = 1, patterns = { "The Tavern Brawler", "Liquid Courage" } }
