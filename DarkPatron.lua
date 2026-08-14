@@ -417,7 +417,7 @@ local ActionTemplates = {
     { trigger = "TYPED_KILL", targetName = "Elemental", baseDesc = "Shatter %s Elementals.", baseGoal = 10, baseFavor = 2, patterns = { "The Stormbreaker", "Dust to Dust" } },
     
     -- Vulnerability & Deprivation
-    { trigger = "NO_BUFF_KILL", baseDesc = "Strike the killing blow on %s targets while having ZERO helpful buffs or auras active. [Soul of Iron and Self-Found Adventurer are exception.", baseGoal = 10, baseFavor = 2, patterns = { "The [Adj] Null", "Mortal Frailty" } },
+    { trigger = "NO_BUFF_KILL", baseDesc = "Strike the killing blow on %s targets while having ZERO helpful buffs or auras active. [Soul of Iron and Self-Found Adventurer are exception.]", baseGoal = 10, baseFavor = 2, patterns = { "The [Adj] Null", "Mortal Frailty" } },
     { trigger = "DEBUFFED_KILL", baseDesc = "Strike the killing blow on %s targets while YOU are suffering from a poison, disease, curse, or bleed.", baseGoal = 5, baseFavor = 3, patterns = { "The [Adj] Masochist", "Blood for Blood" } },
     { trigger = "GRAY_WEAPON_KILL", baseDesc = "Strike the killing blow on %s targets while wielding only a Poor (Gray) or Common (White) weapon.", baseGoal = 15, baseFavor = 2, reqMelee = true, patterns = { "The Peasant's Ire", "Iron & Rust" } },
     
@@ -699,6 +699,10 @@ local function PlayerCanComplete(template, pLvl)
     local pFaction = UnitFactionGroup("player")
     if template.minLvl and pLvl < template.minLvl then return false end
     if template.reqHardcore and not (C_GameRules and C_GameRules.IsHardcoreActive and C_GameRules.IsHardcoreActive()) then return false end
+	local activeVow = GetActivePurityVow()
+    if activeVow == "BLOOD_MAGE_BARGAIN" and template.trigger == "FLAWLESS_KILL" then 
+        return false 
+    end
     if template.reqMelee and not (pClass == "WARRIOR" or pClass == "ROGUE" or pClass == "PALADIN" or pClass == "SHAMAN" or pClass == "HUNTER" or pClass == "DRUID") then return false end
     if template.reqCaster and not (pClass == "MAGE" or pClass == "PRIEST" or pClass == "WARLOCK" or pClass == "SHAMAN" or pClass == "DRUID" or pClass == "PALADIN") then return false end
 	if template.reqAbsorb and not (pClass == "PRIEST" or pClass == "MAGE" or pClass == "WARLOCK") then return false end
@@ -3575,9 +3579,17 @@ local function CheckCombatProgress(event, ...)
                         local finalCost = isWeakened and (bloodCost * 2) or bloodCost
                         for i = #DarkPatronDB.ActiveMissions, 1, -1 do
                             local mission = DarkPatronDB.ActiveMissions[i]
+                            
                             if mission.trigger == "BLOOD_SACRIFICE" then
                                 mission.current = mission.current + finalCost
                                 if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                            
+                            elseif mission.trigger == "DAMAGE_TAKEN" or mission.trigger == "PACIFIST_SURVIVAL" then
+                                mission.current = mission.current + finalCost
+                                if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
+                                
+                            elseif mission.trigger == "FLAWLESS_KILL" then
+                                if mission.current > 0 then mission.current = 0; UpdateTracker() end
                             end
                         end
                     end
