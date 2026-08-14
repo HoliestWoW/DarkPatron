@@ -3922,11 +3922,7 @@ local function CheckCombatProgress(event, ...)
             for i = #DarkPatronDB.ActiveMissions, 1, -1 do
                 local mission = DarkPatronDB.ActiveMissions[i]
                 
-                if mission.trigger == "SHATTERED_SURVIVAL" and tookDamage and effectiveDamage > 0 then
-                    mission.current = mission.current + effectiveDamage
-                    if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
-                end
-                if mission.trigger == "SHIELD_BLEED" and bleedThrough > 0 then
+                if mission.trigger == "SHATTERED_SURVIVAL" and bleedThrough > 0 then
                     mission.current = mission.current + bleedThrough
                     if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
                 end
