@@ -418,7 +418,7 @@ local ActionTemplates = {
     
     -- Vulnerability & Deprivation
     { trigger = "NO_BUFF_KILL", baseDesc = "Strike the killing blow on %s targets while having ZERO helpful buffs or auras active. [Soul of Iron and Self-Found Adventurer are exception.]", baseGoal = 10, baseFavor = 2, patterns = { "The [Adj] Null", "Mortal Frailty" } },
-    { trigger = "DEBUFFED_KILL", baseDesc = "Strike the killing blow on %s targets while YOU are suffering from a poison, disease, curse, or bleed.", baseGoal = 5, baseFavor = 3, patterns = { "The [Adj] Masochist", "Blood for Blood" } },
+    { trigger = "DEBUFFED_KILL", baseDesc = "Strike the killing blow on %s targets while YOU are suffering from a poison, disease, curse, or bleed.", baseGoal = 5, baseFavor = 2, patterns = { "The [Adj] Masochist", "Blood for Blood" } },
     { trigger = "GRAY_WEAPON_KILL", baseDesc = "Strike the killing blow on %s targets while wielding only a Poor (Gray) or Common (White) weapon.", baseGoal = 15, baseFavor = 2, reqMelee = true, patterns = { "The Peasant's Ire", "Iron & Rust" } },
     
     -- Utility & Control
@@ -935,6 +935,11 @@ local function GenerateProceduralContract(allowRare)
     if isTimed then timeLimit = math.random(15, 30) * 60 end
     
     local favorPayout = template.baseFavor + math.floor(pLvl / 20)
+    
+    if (activeVow == "GLASS_HEART" or activeVow == "BLOOD_MAGE_BARGAIN") and template.trigger == "RISKY_KILL" then
+        favorPayout = favorPayout + 1
+    end
+    
     local rarity = "Standard"
     local baseRewardText = ""
     
@@ -3421,6 +3426,35 @@ local lastQuestCount = 0
 
 local CreatureCache = {}
 
+-- =====================================================================
+-- WAND DAMAGE FIX (TOOLTIP SCANNER)
+-- =====================================================================
+local CachedWandSchool = 1
+local DP_WandScanner = CreateFrame("GameTooltip", "DPWandScannerTooltip", nil, "GameTooltipTemplate")
+
+local function UpdateWandSchool()
+    CachedWandSchool = 1
+    local link = GetInventoryItemLink("player", 18) -- 18 is the Ranged slot
+    if not link then return end
+    
+    DP_WandScanner:SetOwner(WorldFrame, "ANCHOR_NONE")
+    DP_WandScanner:ClearLines()
+    DP_WandScanner:SetHyperlink(link)
+    
+    for i = 2, DP_WandScanner:NumLines() do
+        local text = _G["DPWandScannerTooltipTextLeft"..i] and _G["DPWandScannerTooltipTextLeft"..i]:GetText()
+        if text then
+            if text:match("Arcane Damage") then CachedWandSchool = 64; break
+            elseif text:match("Fire Damage") then CachedWandSchool = 4; break
+            elseif text:match("Frost Damage") then CachedWandSchool = 16; break
+            elseif text:match("Nature Damage") then CachedWandSchool = 8; break
+            elseif text:match("Shadow Damage") then CachedWandSchool = 32; break
+            elseif text:match("Holy Damage") then CachedWandSchool = 2; break
+            end
+        end
+    end
+end
+
 local function CheckCombatProgress(event, ...)
     if not DarkPatronDB or not DarkPatronDB.ActiveMissions then return end
 
@@ -3551,6 +3585,10 @@ local function CheckCombatProgress(event, ...)
             amount, _, _, _, blockedAmount = select(12, CombatLogGetCurrentEventInfo())
         elseif subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE" or subEvent == "SPELL_PERIODIC_DAMAGE" then 
             spellSchool = select(14, CombatLogGetCurrentEventInfo())
+            amount, _, _, _, blockedAmount = select(15, CombatLogGetCurrentEventInfo())
+            if subEvent == "RANGE_DAMAGE" and CachedWandSchool > 1 then
+                spellSchool = CachedWandSchool
+            end
             amount, _, _, _, blockedAmount = select(15, CombatLogGetCurrentEventInfo())
         elseif subEvent == "SPELL_HEAL" or subEvent == "SPELL_PERIODIC_HEAL" then 
             spellSchool = select(14, CombatLogGetCurrentEventInfo()); amount = select(15, CombatLogGetCurrentEventInfo())
@@ -3850,8 +3888,17 @@ local function CheckCombatProgress(event, ...)
                             if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
                         end
                     elseif mission.trigger == "RISKY_KILL" then 
-                        local hpMax = UnitHealthMax("player")
-                        if hpMax and hpMax > 0 and (UnitHealth("player") / hpMax) <= 0.33 then 
+                        local currentHP = UnitHealth("player")
+                        local maxHP = UnitHealthMax("player")
+
+                        if activeVow == "BLOOD_MAGE_BARGAIN" and Purity_PerCharacterDB then
+                            currentHP = Purity_PerCharacterDB.bloodPoolCurrent or currentHP
+                            maxHP = Purity_PerCharacterDB.bloodPoolMax or maxHP
+                        elseif activeVow == "GLASS_HEART" and Purity_PerCharacterDB then
+                            currentHP = Purity_PerCharacterDB.glassHeartHP or currentHP
+                        end
+
+                        if maxHP and maxHP > 0 and (currentHP / maxHP) <= 0.33 then 
                             mission.current = mission.current + 1
                             if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
                         end
@@ -3922,11 +3969,7 @@ local function CheckCombatProgress(event, ...)
             for i = #DarkPatronDB.ActiveMissions, 1, -1 do
                 local mission = DarkPatronDB.ActiveMissions[i]
                 
-                if mission.trigger == "SHATTERED_SURVIVAL" and tookDamage and effectiveDamage > 0 then
-                    mission.current = mission.current + effectiveDamage
-                    if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
-                end
-                if mission.trigger == "SHIELD_BLEED" and bleedThrough > 0 then
+                if mission.trigger == "SHATTERED_SURVIVAL" and bleedThrough > 0 then
                     mission.current = mission.current + bleedThrough
                     if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
                 end
@@ -4190,6 +4233,7 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
         if not DarkPatronDB.HasMail then CloseMail(); print("|cffff0000[Dark Patron]: The Veil blocks your messages! You must purchase The Courier's Seal from the Bazaar to access Mail.|r") end
     elseif event == "PLAYER_ENTERING_WORLD" then
         CheckViolations()
+        UpdateWandSchool()
         if not DarkPatronDB.PoolOfSix or #DarkPatronDB.PoolOfSix == 0 then RefillMissionPool() end
         
         DarkPatronAccountDB = DarkPatronAccountDB or {}
@@ -4220,7 +4264,8 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
         if Ledger and Ledger:IsShown() then 
             Ledger:GetScript("OnShow")(Ledger) 
         end
-    elseif event == "PLAYER_EQUIPMENT_CHANGED" or event == "CHARACTER_POINTS_CHANGED" then CheckViolations()
+    elseif event == "PLAYER_EQUIPMENT_CHANGED" then CheckViolations(); UpdateWandSchool()
+    elseif event == "CHARACTER_POINTS_CHANGED" then CheckViolations()
     elseif event == "PLAYER_REGEN_ENABLED" then if isViolating then CheckViolations() end
     elseif event == "PLAYER_UPDATE_RESTING" or event == "ZONE_CHANGED_NEW_AREA" or event == "ZONE_CHANGED" then if Ledger and Ledger:IsShown() then Ledger:GetScript("OnShow")(Ledger) end
 	elseif event == "COMPANION_UPDATE" then
