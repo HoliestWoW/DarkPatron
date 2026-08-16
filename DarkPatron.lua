@@ -466,11 +466,11 @@ end
 
 local PurityIntegration = {
     ["BLOOD_MAGE_BARGAIN"] = {
-        { trigger = "BLOOD_SACRIFICE", baseDesc = "Expend %s of your own Blood to fuel your heavy abilities.", baseGoal = 1500, baseFavor = 1, isStat = true, patterns = { "The Crimson Toll", "Price of the Bargain" } },
+        { trigger = "BLOOD_SACRIFICE", baseDesc = "Expend %s of your own Blood to fuel your heavy abilities.", baseGoal = 150, baseFavor = 1, isStat = true, patterns = { "The Crimson Toll", "Price of the Bargain" } },
         { trigger = "WEAKENED_KILL", baseDesc = "Execute %s enemies while suffering from Sanguine Weakness.", baseGoal = 10, baseFavor = 2, patterns = { "The Fragile Edge", "Power in Frailty" } }
     },
     ["GLASS_HEART"] = {
-        { trigger = "SHATTERED_SURVIVAL", baseDesc = "Survive taking %s structural damage bleeding through your shields.", baseGoal = 2000, baseFavor = 2, isStat = true, reqAbsorb = true, patterns = { "The Shattered Aegis", "Brittle Bones" } }
+        { trigger = "SHATTERED_SURVIVAL", baseDesc = "Survive taking %s structural damage bleeding through your shields.", baseGoal = 150, baseFavor = 2, isStat = true, reqAbsorb = true, patterns = { "The Shattered Aegis", "Brittle Bones" } }
     },
     ["DRUNK"] = {
         { trigger = "DRUNKEN_BRAWL", baseDesc = "Strike the killing blow on %s enemies while Completely Smashed.", baseGoal = 15, baseFavor = 1, patterns = { "The Tavern Brawler", "Liquid Courage" } }
@@ -3469,13 +3469,9 @@ local function CheckCombatProgress(event, ...)
         end
         return
     end
-end
-
-local function CheckCombatProgress(event, ...)
-    if not DarkPatronDB or not DarkPatronDB.ActiveMissions then return end
 
     if event == "PLAYER_DEAD" then
-        for i = #DarkPatronDB.ActiveMissions, 1, -1 do 
+        for i = #DarkPatronDB.ActiveMissions, 1, -1 do
             local mission = DarkPatronDB.ActiveMissions[i]
             if mission.trigger == "FLAWLESS_KILL" then 
                 mission.current = 0 
@@ -3589,7 +3585,6 @@ local function CheckCombatProgress(event, ...)
             if subEvent == "RANGE_DAMAGE" and CachedWandSchool > 1 then
                 spellSchool = CachedWandSchool
             end
-            amount, _, _, _, blockedAmount = select(15, CombatLogGetCurrentEventInfo())
         elseif subEvent == "SPELL_HEAL" or subEvent == "SPELL_PERIODIC_HEAL" then 
             spellSchool = select(14, CombatLogGetCurrentEventInfo()); amount = select(15, CombatLogGetCurrentEventInfo())
         elseif subEvent == "SWING_MISSED" then
