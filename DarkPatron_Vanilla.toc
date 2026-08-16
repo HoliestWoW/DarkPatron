@@ -2,7 +2,7 @@
 ## Title: Dark Patron
 ## Notes: Solo Self-Found Roguelite Progression
 ## Author: HoliestWoW
-## Version: 1.0.4a Era
+## Version: 1.0.4b Era
 ## SavedVariables: DarkPatronAccountDB
 ## SavedVariablesPerCharacter: DarkPatronDB
 
