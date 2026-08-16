@@ -829,8 +829,8 @@ local function GenerateProceduralContract(allowRare)
         end
     end
     
-    local targetNameStr = ""
-    local displayNameStr = "" -- NEW: Decouples the UI text from the API spell
+    local targetNameStr = template.targetName or ""
+    local displayNameStr = ""
     local targetZoneStr = ""
     local expectedMinSkill = math.max(1, (pLvl * 5) - 50)
 	local customDesc = nil
@@ -3740,11 +3740,6 @@ local function CheckCombatProgress(event, ...)
         end
 
         if subEvent == "UNIT_DIED" then
-            -- Clean up cache on death to prevent memory bloat
-            if destGUID and CreatureCache[destGUID] then
-                CreatureCache[destGUID] = nil
-            end
-
             if DungeonBossDB[destNpcID] then
                 local currentZoneName = GetInstanceInfo()
                 
@@ -4261,7 +4256,7 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
         end
     elseif event == "PLAYER_EQUIPMENT_CHANGED" then CheckViolations(); UpdateWandSchool()
     elseif event == "CHARACTER_POINTS_CHANGED" then CheckViolations()
-    elseif event == "PLAYER_REGEN_ENABLED" then if isViolating then CheckViolations() end
+    elseif event == "PLAYER_REGEN_ENABLED" then if isViolating then CheckViolations() end CreatureCache = {}
     elseif event == "PLAYER_UPDATE_RESTING" or event == "ZONE_CHANGED_NEW_AREA" or event == "ZONE_CHANGED" then if Ledger and Ledger:IsShown() then Ledger:GetScript("OnShow")(Ledger) end
 	elseif event == "COMPANION_UPDATE" then
         if IsMounted() and DarkPatronDB then
