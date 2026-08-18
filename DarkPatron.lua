@@ -829,8 +829,8 @@ local function GenerateProceduralContract(allowRare)
         end
     end
     
-    local targetNameStr = ""
-    local displayNameStr = "" -- NEW: Decouples the UI text from the API spell
+    local targetNameStr = template.targetName or ""
+    local displayNameStr = ""
     local targetZoneStr = ""
     local expectedMinSkill = math.max(1, (pLvl * 5) - 50)
 	local customDesc = nil
@@ -935,6 +935,11 @@ local function GenerateProceduralContract(allowRare)
     if isTimed then timeLimit = math.random(15, 30) * 60 end
     
     local favorPayout = template.baseFavor + math.floor(pLvl / 20)
+    
+    if (activeVow == "GLASS_HEART" or activeVow == "BLOOD_MAGE_BARGAIN") and template.trigger == "RISKY_KILL" then
+        favorPayout = favorPayout + 1
+    end
+    
     local rarity = "Standard"
     local baseRewardText = ""
     
@@ -3421,6 +3426,57 @@ local lastQuestCount = 0
 
 local CreatureCache = {}
 
+-- =====================================================================
+-- WAND DAMAGE FIX (TOOLTIP SCANNER)
+-- =====================================================================
+local CachedWandSchool = 1
+local DP_WandScanner = CreateFrame("GameTooltip", "DPWandScannerTooltip", nil, "GameTooltipTemplate")
+
+local function UpdateWandSchool()
+    CachedWandSchool = 1
+    
+    -- Modern 1.15.9+ UI Overhaul API (Bypasses hidden frames)
+    if C_TooltipInfo then
+        local tooltipData = C_TooltipInfo.GetInventoryItem("player", 18) -- 18 is the Ranged slot
+        if tooltipData and tooltipData.lines then
+            for _, line in ipairs(tooltipData.lines) do
+                local text = line.leftText
+                if text then
+                    if text:match("Arcane Damage") then CachedWandSchool = 64; break
+                    elseif text:match("Fire Damage") then CachedWandSchool = 4; break
+                    elseif text:match("Frost Damage") then CachedWandSchool = 16; break
+                    elseif text:match("Nature Damage") then CachedWandSchool = 8; break
+                    elseif text:match("Shadow Damage") then CachedWandSchool = 32; break
+                    elseif text:match("Holy Damage") then CachedWandSchool = 2; break
+                    end
+                end
+            end
+        end
+        return
+    end
+
+    -- Legacy Fallback
+    local link = GetInventoryItemLink("player", 18) 
+    if not link then return end
+    
+    DP_WandScanner:SetOwner(WorldFrame, "ANCHOR_NONE")
+    DP_WandScanner:ClearLines()
+    DP_WandScanner:SetInventoryItem("player", 18)
+    
+    for i = 2, DP_WandScanner:NumLines() do
+        local text = _G["DPWandScannerTooltipTextLeft"..i] and _G["DPWandScannerTooltipTextLeft"..i]:GetText()
+        if text then
+            if text:match("Arcane Damage") then CachedWandSchool = 64; break
+            elseif text:match("Fire Damage") then CachedWandSchool = 4; break
+            elseif text:match("Frost Damage") then CachedWandSchool = 16; break
+            elseif text:match("Nature Damage") then CachedWandSchool = 8; break
+            elseif text:match("Shadow Damage") then CachedWandSchool = 32; break
+            elseif text:match("Holy Damage") then CachedWandSchool = 2; break
+            end
+        end
+    end
+end
+
 local function CheckCombatProgress(event, ...)
     if not DarkPatronDB or not DarkPatronDB.ActiveMissions then return end
 
@@ -3435,13 +3491,9 @@ local function CheckCombatProgress(event, ...)
         end
         return
     end
-end
-
-local function CheckCombatProgress(event, ...)
-    if not DarkPatronDB or not DarkPatronDB.ActiveMissions then return end
 
     if event == "PLAYER_DEAD" then
-        for i = #DarkPatronDB.ActiveMissions, 1, -1 do 
+        for i = #DarkPatronDB.ActiveMissions, 1, -1 do
             local mission = DarkPatronDB.ActiveMissions[i]
             if mission.trigger == "FLAWLESS_KILL" then 
                 mission.current = 0 
@@ -3552,6 +3604,9 @@ local function CheckCombatProgress(event, ...)
         elseif subEvent == "SPELL_DAMAGE" or subEvent == "RANGE_DAMAGE" or subEvent == "SPELL_PERIODIC_DAMAGE" then 
             spellSchool = select(14, CombatLogGetCurrentEventInfo())
             amount, _, _, _, blockedAmount = select(15, CombatLogGetCurrentEventInfo())
+            if subEvent == "RANGE_DAMAGE" and CachedWandSchool > 1 then
+                spellSchool = CachedWandSchool
+            end
         elseif subEvent == "SPELL_HEAL" or subEvent == "SPELL_PERIODIC_HEAL" then 
             spellSchool = select(14, CombatLogGetCurrentEventInfo()); amount = select(15, CombatLogGetCurrentEventInfo())
         elseif subEvent == "SWING_MISSED" then
@@ -3707,11 +3762,6 @@ local function CheckCombatProgress(event, ...)
         end
 
         if subEvent == "UNIT_DIED" then
-            -- Clean up cache on death to prevent memory bloat
-            if destGUID and CreatureCache[destGUID] then
-                CreatureCache[destGUID] = nil
-            end
-
             if DungeonBossDB[destNpcID] then
                 local currentZoneName = GetInstanceInfo()
                 
@@ -3839,7 +3889,16 @@ local function CheckCombatProgress(event, ...)
                         mission.current = mission.current + 1
                         if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
                     elseif mission.trigger == "WELL_FED_KILL" then 
-                        if IsWellFed() then 
+                        local isFed = false
+                        for b = 1, 40 do
+                            local name = UnitAura("player", b, "HELPFUL")
+                            if not name then break end
+                            if name == "Well Fed" then 
+                                isFed = true 
+                                break 
+                            end
+                        end
+                        if isFed then 
                             mission.current = mission.current + 1
                             if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
                         end
@@ -3850,8 +3909,17 @@ local function CheckCombatProgress(event, ...)
                             if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
                         end
                     elseif mission.trigger == "RISKY_KILL" then 
-                        local hpMax = UnitHealthMax("player")
-                        if hpMax and hpMax > 0 and (UnitHealth("player") / hpMax) <= 0.33 then 
+                        local currentHP = UnitHealth("player")
+                        local maxHP = UnitHealthMax("player")
+
+                        if activeVow == "BLOOD_MAGE_BARGAIN" and Purity_PerCharacterDB then
+                            currentHP = Purity_PerCharacterDB.bloodPoolCurrent or currentHP
+                            maxHP = Purity_PerCharacterDB.bloodPoolMax or maxHP
+                        elseif activeVow == "GLASS_HEART" and Purity_PerCharacterDB then
+                            currentHP = Purity_PerCharacterDB.glassHeartHP or currentHP
+                        end
+
+                        if maxHP and maxHP > 0 and (currentHP / maxHP) <= 0.33 then 
                             mission.current = mission.current + 1
                             if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
                         end
@@ -3916,6 +3984,10 @@ local function CheckCombatProgress(event, ...)
                 
                 if absorbedAmount and absorbedAmount > 0 then
                     bleedThrough = absorbedAmount * (Purity_PerCharacterDB.glassHeartMultiplier - 1)
+                    effectiveDamage = effectiveDamage + bleedThrough
+                    if bleedThrough > 0 then
+                        tookDamage = true
+                    end
                 end
             end
             
@@ -3935,7 +4007,7 @@ local function CheckCombatProgress(event, ...)
                 -- Normal Increments
                 if mission.trigger == "PACIFIST_SURVIVAL" and tookDamage and effectiveDamage > 0 then mission.current = mission.current + effectiveDamage; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
                 if mission.trigger == "FALLING_DAMAGE" and subEvent == "ENVIRONMENTAL_DAMAGE" and effectiveDamage > 0 then mission.current = mission.current + effectiveDamage; if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
-                if mission.trigger == "DAMAGE_TAKEN" and subEvent and subEvent:find("DAMAGE") then mission.current = mission.current + (effectiveDamage > 0 and effectiveDamage or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
+                if mission.trigger == "DAMAGE_TAKEN" and (tookDamage or (subEvent and subEvent:find("DAMAGE"))) then mission.current = mission.current + (effectiveDamage > 0 and effectiveDamage or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
                 if mission.trigger == "HEALING_RECEIVED" and (subEvent == "SPELL_HEAL" or subEvent == "SPELL_PERIODIC_HEAL") then mission.current = mission.current + (amount or 1); if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end end
                 if mission.trigger == "DROWNING_SURVIVAL" and subEvent == "ENVIRONMENTAL_DAMAGE" then 
                     local envType = select(12, CombatLogGetCurrentEventInfo())
@@ -4107,6 +4179,21 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
                     return
                 end
                 
+                local currentTab = PlayerTalentFrame and PlayerTalentFrame.selectedTab
+                local talentID = self:GetID()
+                
+                if currentTab and talentID then
+                    local _, _, tier = GetTalentInfo(currentTab, talentID)
+                    
+                    local capstoneTier = isTBC and 9 or 7
+                    
+                    if tier and tier == capstoneTier and not DarkPatronDB.HasCapstone then
+                        UIErrorsFrame:AddMessage("The Veil seals the capstone. Purchase Capstone Awakening in the Apex Sanctum.", 1.0, 0.1, 0.1, 1.0)
+                        print("|cffff0000[Dark Patron]: The Veil seals the capstone! You must acquire Capstone Awakening from the Apex Sanctum.|r")
+                        return
+                    end
+                end
+                
                 return orig_PlayerTalentFrameTalent_OnClick(self, button)
             end
             
@@ -4116,6 +4203,16 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
                     UIErrorsFrame:AddMessage("The Veil blocks your hand. Purchase a Grant of Knowledge.", 1.0, 0.1, 0.1, 1.0)
                     return
                 end
+                
+                local _, _, tier = GetTalentInfo(tabIndex, talentIndex)
+                
+                local capstoneTier = isTBC and 9 or 7
+                
+                if tier and tier == capstoneTier and not DarkPatronDB.HasCapstone then
+                    UIErrorsFrame:AddMessage("The Veil seals the capstone. Purchase Capstone Awakening in the Apex Sanctum.", 1.0, 0.1, 0.1, 1.0)
+                    return
+                end
+
                 return orig_LearnTalent(tabIndex, talentIndex)
             end
 
@@ -4186,6 +4283,7 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
         if not DarkPatronDB.HasMail then CloseMail(); print("|cffff0000[Dark Patron]: The Veil blocks your messages! You must purchase The Courier's Seal from the Bazaar to access Mail.|r") end
     elseif event == "PLAYER_ENTERING_WORLD" then
         CheckViolations()
+        C_Timer.After(2.0, UpdateWandSchool) -- Give the server 2 seconds to fetch the item data
         if not DarkPatronDB.PoolOfSix or #DarkPatronDB.PoolOfSix == 0 then RefillMissionPool() end
         
         DarkPatronAccountDB = DarkPatronAccountDB or {}
@@ -4216,8 +4314,9 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
         if Ledger and Ledger:IsShown() then 
             Ledger:GetScript("OnShow")(Ledger) 
         end
-    elseif event == "PLAYER_EQUIPMENT_CHANGED" or event == "CHARACTER_POINTS_CHANGED" then CheckViolations()
-    elseif event == "PLAYER_REGEN_ENABLED" then if isViolating then CheckViolations() end
+    elseif event == "PLAYER_EQUIPMENT_CHANGED" then CheckViolations(); UpdateWandSchool()
+    elseif event == "CHARACTER_POINTS_CHANGED" then CheckViolations()
+    elseif event == "PLAYER_REGEN_ENABLED" then if isViolating then CheckViolations() end CreatureCache = {}
     elseif event == "PLAYER_UPDATE_RESTING" or event == "ZONE_CHANGED_NEW_AREA" or event == "ZONE_CHANGED" then if Ledger and Ledger:IsShown() then Ledger:GetScript("OnShow")(Ledger) end
 	elseif event == "COMPANION_UPDATE" then
         if IsMounted() and DarkPatronDB then
