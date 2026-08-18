@@ -3867,7 +3867,16 @@ local function CheckCombatProgress(event, ...)
                         mission.current = mission.current + 1
                         if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end
                     elseif mission.trigger == "WELL_FED_KILL" then 
-                        if IsWellFed() then 
+                        local isFed = false
+                        for b = 1, 40 do
+                            local name = UnitAura("player", b, "HELPFUL")
+                            if not name then break end
+                            if name == "Well Fed" then 
+                                isFed = true 
+                                break 
+                            end
+                        end
+                        if isFed then 
                             mission.current = mission.current + 1
                             if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
                         end
@@ -4144,6 +4153,21 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
                     return
                 end
                 
+                local currentTab = PlayerTalentFrame and PlayerTalentFrame.selectedTab
+                local talentID = self:GetID()
+                
+                if currentTab and talentID then
+                    local _, _, tier = GetTalentInfo(currentTab, talentID)
+                    
+                    local capstoneTier = isTBC and 9 or 7
+                    
+                    if tier and tier == capstoneTier and not DarkPatronDB.HasCapstone then
+                        UIErrorsFrame:AddMessage("The Veil seals the capstone. Purchase Capstone Awakening in the Apex Sanctum.", 1.0, 0.1, 0.1, 1.0)
+                        print("|cffff0000[Dark Patron]: The Veil seals the capstone! You must acquire Capstone Awakening from the Apex Sanctum.|r")
+                        return
+                    end
+                end
+                
                 return orig_PlayerTalentFrameTalent_OnClick(self, button)
             end
             
@@ -4153,6 +4177,16 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
                     UIErrorsFrame:AddMessage("The Veil blocks your hand. Purchase a Grant of Knowledge.", 1.0, 0.1, 0.1, 1.0)
                     return
                 end
+                
+                local _, _, tier = GetTalentInfo(tabIndex, talentIndex)
+                
+                local capstoneTier = isTBC and 9 or 7
+                
+                if tier and tier == capstoneTier and not DarkPatronDB.HasCapstone then
+                    UIErrorsFrame:AddMessage("The Veil seals the capstone. Purchase Capstone Awakening in the Apex Sanctum.", 1.0, 0.1, 0.1, 1.0)
+                    return
+                end
+
                 return orig_LearnTalent(tabIndex, talentIndex)
             end
 
