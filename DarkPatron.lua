@@ -1083,9 +1083,9 @@ local function GenerateAllRaidContracts(pLvl)
     return validContracts
 end
 
-local function CheckLevelMilestoneDungeons()
+local function CheckLevelMilestoneDungeons(overrideLevel)
     if not DarkPatronDB then return end
-    local pLvl = UnitLevel("player") or 1
+    local pLvl = overrideLevel or UnitLevel("player") or 1
     local pFaction = UnitFactionGroup("player")
     local guid = UnitGUID("player") or "Unknown"
     
@@ -4305,9 +4305,10 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
 
         UpdateTracker(); DP_EvaluateBazaarAlert()
 	elseif event == "PLAYER_LEVEL_UP" then
-        local newLevel = arg1 or UnitLevel("player")
+        local newLevel = ...
+        newLevel = tonumber(newLevel) or UnitLevel("player")
         
-        CheckLevelMilestoneDungeons()
+        CheckLevelMilestoneDungeons(newLevel)
         
         print(string.format("|cffffd700[Dark Patron]: You have reached level %d. The Veil reveals new dungeon trials.|r", newLevel))
         
