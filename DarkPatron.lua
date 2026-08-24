@@ -427,7 +427,7 @@ local ActionTemplates = {
     { trigger = "MOB_DRAIN", baseDesc = "Successfully drain or siphon %s Health or Mana from enemies.", baseGoal = 350, baseFavor = 2, isStat = false, reqShadow = true, patterns = { "The [Adj] Leech", "Hunger of the Void" } },
     
     -- Environmental & Sadism
-    { trigger = "DROWNING_SURVIVAL", baseDesc = "Hold your breath until you take drowning damage, then survive, %s times.", baseGoal = 2, baseFavor = 2, patterns = { "The [Adj] Lungs", "Kiss of the Depths" } },
+    { trigger = "DROWNING_SURVIVAL", baseDesc = "Survive taking drowning damage %s times. Consecutive ticks count.", baseGoal = 2, baseFavor = 2, patterns = { "The [Adj] Lungs", "Kiss of the Depths" } },
     { trigger = "EXPLORE_ZONES", baseDesc = "Discover %s new map areas or sub-zones.", baseGoal = 5, baseFavor = 2, patterns = { "The [Adj] Nomad", "Mapping the Abyss" } },
     { trigger = "CRITTER_SLAUGHTER", baseDesc = "Ruthlessly slaughter %s harmless critters.", baseGoal = 15, baseFavor = 1, patterns = { "The [Adj] Monster", "Pest Control" } },
     { trigger = "OVERKILL_STRIKE", baseDesc = "Deliver a single, devastating strike that deals %s or more damage at once.", baseGoal = 150, baseFavor = 2, isStat = true, patterns = { "The [Adj] Hammer", "Shattering Force" } },
@@ -3671,11 +3671,10 @@ local function CheckCombatProgress(event, ...)
                 end
             end
         
-            -- NEW: Overkill & Drain Tracking
             if amount and amount > 0 then
                 for i = #DarkPatronDB.ActiveMissions, 1, -1 do
                     local mission = DarkPatronDB.ActiveMissions[i]
-                    if mission.trigger == "OVERKILL_STRIKE" and amount >= mission.goal then
+                    if mission.trigger == "OVERKILL_STRIKE" and string.find(subEvent, "_DAMAGE") and amount >= mission.goal then
                         mission.current = mission.goal
                         FulfillMission(i, mission)
                     elseif mission.trigger == "MOB_DRAIN" and (spellName == "Drain Life" or spellName == "Drain Soul" or spellName == "Mana Burn" or spellName == "Drain Mana" or spellName == "Siphon Life") then
