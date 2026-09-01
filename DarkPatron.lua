@@ -72,8 +72,8 @@ DP_Core:RegisterEvent("PLAYER_LEVEL_UP")
 DP_Core:RegisterEvent("CHAT_MSG_ADDON")
 DP_Core:RegisterEvent("PLAYER_TARGET_CHANGED")
 DP_Core:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
+DP_Core:RegisterEvent("GROUP_ROSTER_UPDATE")
 
-local devMode = false
 local DEVELOPER_IDENTITY = "HoliestWoW-Dreamscythe"
 
 local DP_EvaluateBazaarAlert, PatronWhisper, ShowPatronToast, RecordCompletedPact, RefillMissionPool, DP_UpdateTalentText
@@ -1156,6 +1156,8 @@ local function CheckLevelMilestoneDungeons(overrideLevel)
         end
         PlaySound(8831) -- Quest unlock sound
     end
+    
+    return addedNew
 end
 
 -- =====================================================================
@@ -3025,6 +3027,14 @@ GameTooltip:HookScript("OnTooltipSetUnit", function(self)
 
     if not DarkPatronDB or not DarkPatronDB.ActiveMissions then return end
     local isHostile = not UnitIsFriend("player", unit) and not UnitIsPlayer(unit)
+    
+    -- Extract the NPC ID to check if they are a boss
+    local guid = UnitGUID(unit)
+    local destNpcID = 0
+    if guid then
+        local _, _, _, _, _, idStr = strsplit("-", guid)
+        if idStr then destNpcID = tonumber(idStr) or 0 end
+    end
 
     for _, mission in ipairs(DarkPatronDB.ActiveMissions) do
         if mission.trigger == "SPECIFIC_KILL" and mission.targetName == unitName then
@@ -3035,6 +3045,22 @@ GameTooltip:HookScript("OnTooltipSetUnit", function(self)
             self:AddLine("Dark Patron Pact: " .. (mission.title or "Bounty"), 0.64, 0.21, 0.93)
             self:AddLine(string.format("Hostile Kills: %d / %d", mission.current or 0, mission.goal), 1, 0.5, 0)
             self:Show()
+        elseif mission.trigger == "DUNGEON_BOSS_KILL" and DungeonBossDB[destNpcID] then
+            local currentZoneName = GetInstanceInfo()
+            local isCorrectZone = false
+            if currentZoneName and currentZoneName ~= "" and mission.targetName then
+                if string.find(mission.targetName, currentZoneName, 1, true) or string.find(currentZoneName, mission.targetName, 1, true) then
+                    isCorrectZone = true
+                end
+                if string.find(currentZoneName, "Atal'Hakkar") and string.find(mission.targetName, "Atal'Hakkar") then
+                    isCorrectZone = true
+                end
+            end
+            if isCorrectZone then
+                self:AddLine("Dark Patron Pact: " .. (mission.title or "Purge"), 0.64, 0.21, 0.93)
+                self:AddLine(string.format("Bosses Slain: %d / %d", mission.current or 0, mission.goal), 1, 0.5, 0)
+                self:Show()
+            end
         end
     end
 end)
@@ -3788,7 +3814,14 @@ local function CheckCombatProgress(event, ...)
                         end
 
                         if isCorrectZone then
-                            if devMode or IsGroupValidForDungeon(mission.targetInstanceID) then
+                            local isValidated = false
+                            if DarkPatronDB.ValidatedInstances and DarkPatronDB.ValidatedInstances[mission.targetInstanceID] ~= nil then
+                                isValidated = DarkPatronDB.ValidatedInstances[mission.targetInstanceID]
+                            else
+                                isValidated = IsGroupValidForDungeon(mission.targetInstanceID)
+                            end
+
+                            if devMode or isValidated then
                                 mission.current = mission.current + 1
                                 if mission.current >= mission.goal then FulfillMission(i, mission) else UpdateTracker() end 
                             else
@@ -4290,7 +4323,68 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
         if not DarkPatronDB.HasAuction then CloseAuctionHouse(); print("|cffff0000[Dark Patron]: The Veil closes the market! You must purchase The Merchant's Writ from the Bazaar to access the Auction House.|r") end
     elseif event == "MAIL_SHOW" then
         if not DarkPatronDB.HasMail then CloseMail(); print("|cffff0000[Dark Patron]: The Veil blocks your messages! You must purchase The Courier's Seal from the Bazaar to access Mail.|r") end
+    elseif event == "GROUP_ROSTER_UPDATE" then
+        if IsInInstance() and DarkPatronDB and DarkPatronDB.ActiveMissions then
+            for _, m in ipairs(DarkPatronDB.ActiveMissions) do
+                if m.trigger == "DUNGEON_BOSS_KILL" and m.targetInstanceID then
+                    if DarkPatronDB.ValidatedInstances and DarkPatronDB.ValidatedInstances[m.targetInstanceID] == true then
+                        local dInfo = nil
+                        for _, d in ipairs(DungeonDB) do
+                            if d.instanceID == m.targetInstanceID then dInfo = d; break end
+                        end
+                        if dInfo then
+                            local prefix = IsInRaid() and "raid" or "party"
+                            local maxCount = IsInRaid() and 40 or 4
+                            for i = 1, maxCount do
+                                local unit = prefix .. i
+                                if UnitExists(unit) and not UnitIsUnit(unit, "player") then
+                                    local guid = UnitGUID(unit)
+                                    if guid and not DarkPatronDB.ApprovedRoster[guid] then
+                                        local memberLvl = UnitLevel(unit)
+                                        if memberLvl > 0 and (memberLvl > dInfo.maxLvl or memberLvl < dInfo.minLvl) then
+                                            DarkPatronDB.ValidatedInstances[m.targetInstanceID] = false
+                                            print("|cffff0000[Dark Patron]: An illegal player joined mid-run. This dungeon is now invalidated.|r")
+                                        else
+                                            DarkPatronDB.ApprovedRoster[guid] = true
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
     elseif event == "PLAYER_ENTERING_WORLD" then
+        DarkPatronDB.ValidatedInstances = DarkPatronDB.ValidatedInstances or {}
+        DarkPatronDB.ApprovedRoster = DarkPatronDB.ApprovedRoster or {}
+        
+        if IsInInstance() then
+            if DarkPatronDB.ActiveMissions then
+                for _, m in ipairs(DarkPatronDB.ActiveMissions) do
+                    if m.trigger == "DUNGEON_BOSS_KILL" and m.targetInstanceID then
+                        if DarkPatronDB.ValidatedInstances[m.targetInstanceID] == nil then
+                            local isValid = IsGroupValidForDungeon(m.targetInstanceID)
+                            DarkPatronDB.ValidatedInstances[m.targetInstanceID] = isValid
+                            if isValid then
+                                local prefix = IsInRaid() and "raid" or "party"
+                                local maxCount = IsInRaid() and 40 or 4
+                                for i = 1, maxCount do
+                                    local unit = prefix .. i
+                                    if UnitExists(unit) and not UnitIsUnit(unit, "player") then
+                                        DarkPatronDB.ApprovedRoster[UnitGUID(unit)] = true
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        else
+            DarkPatronDB.ValidatedInstances = {}
+            DarkPatronDB.ApprovedRoster = {}
+        end
+
         CheckViolations()
         C_Timer.After(2.0, UpdateWandSchool) -- Give the server 2 seconds to fetch the item data
         if not DarkPatronDB.PoolOfSix or #DarkPatronDB.PoolOfSix == 0 then RefillMissionPool() end
@@ -4317,9 +4411,11 @@ DP_Core:SetScript("OnEvent", function(self, event, ...)
         local newLevel = ...
         newLevel = tonumber(newLevel) or UnitLevel("player")
         
-        CheckLevelMilestoneDungeons(newLevel)
+        local newDungeonsAdded = CheckLevelMilestoneDungeons(newLevel)
         
-        print(string.format("|cffffd700[Dark Patron]: You have reached level %d. The Veil reveals new dungeon trials.|r", newLevel))
+        if newDungeonsAdded then
+            print(string.format("|cffffd700[Dark Patron]: You have reached level %d. The Veil reveals new dungeon trials.|r", newLevel))
+        end
         
         if Ledger and Ledger:IsShown() then 
             Ledger:GetScript("OnShow")(Ledger) 
